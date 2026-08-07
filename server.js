@@ -99,7 +99,33 @@ app.get("/api/tasks", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// Mechanic: Update a task's status (e.g., mark as "Completed")
+app.patch("/api/tasks/:taskId", async (req, res) => {
+  try {
+    // Finds the task by the ID in the URL and updates it with the data sent in the request
+    const updatedTask = await Task.findByIdAndUpdate(
+      req.params.taskId,
+      { status: req.body.status },
+      { new: true }, // Tells MongoDB to send back the newly updated version
+    );
+    res
+      .status(200)
+      .json({ message: "Task status updated!", data: updatedTask });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
 
+// Admin: Get the maintenance history for one specific vehicle
+app.get('/api/vehicles/:vehicleId/tasks', async (req, res) => {
+    try {
+        // Searches the Tasks collection for any task matching this specific vehicleId
+        const history = await Task.find({ vehicleId: req.params.vehicleId });
+        res.status(200).json(history);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 // 4. Turn the server on so it listens for requests
 const PORT = 3000;
 app.listen(PORT, () => {

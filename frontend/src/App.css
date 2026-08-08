@@ -349,7 +349,7 @@ input:focus {
 
 .task-columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
 }
 
@@ -448,6 +448,10 @@ input:focus {
 .task-description {
   margin: 0 0 8px 0;
   color: var(--text);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.5;
 }
 
 .task-date-label {
@@ -477,6 +481,8 @@ input:focus {
   border-radius: 10px;
   margin-bottom: 12px;
   border: 1px solid #dde6f0;
+  display: flex;
+  flex-direction: column;
 }
 
 .task-card.success {
@@ -493,6 +499,11 @@ input:focus {
   background: var(--success);
   color: #fff;
   width: 100%;
+  margin-top: auto;
+}
+
+.task-done-label {
+  margin-top: auto;
 }
 
 .complete-btn:hover {
@@ -719,7 +730,6 @@ input:focus {
 
 @media (max-width: 900px) {
   .layout-grid,
-  .task-columns,
   .compliance-grid,
   .compliance-upload-form {
     grid-template-columns: 1fr;
@@ -743,7 +753,11 @@ input:focus {
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
+  .task-columns {
+    grid-template-columns: 1fr;
+  }
+
   .fleet-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

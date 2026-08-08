@@ -6,6 +6,7 @@ import {
   ExternalLink,
   FileText,
   ShieldCheck,
+  Trash2,
   Upload,
 } from "lucide-react";
 
@@ -58,6 +59,7 @@ function VehicleComplianceView({ vehicle, onBack, onDataChanged }) {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [deletingDocId, setDeletingDocId] = useState(null);
   const [complianceNotes, setComplianceNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
@@ -173,6 +175,35 @@ function VehicleComplianceView({ vehicle, onBack, onDataChanged }) {
       window.alert(error.message || "Could not upload compliance document");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId) => {
+    if (!window.confirm("Remove this compliance document from the database?")) {
+      return;
+    }
+
+    setDeletingDocId(documentId);
+    try {
+      const response = await fetch(
+        `/api/vehicles/${vehicle._id}/compliance-documents/${documentId}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Could not delete document");
+      }
+
+      await loadComplianceDocuments();
+      if (onDataChanged) onDataChanged();
+    } catch (error) {
+      console.error("Error deleting compliance document:", error);
+      window.alert(error.message || "Could not delete compliance document");
+    } finally {
+      setDeletingDocId(null);
     }
   };
 
@@ -319,6 +350,23 @@ function VehicleComplianceView({ vehicle, onBack, onDataChanged }) {
                   <div className={`status-pill ${status.kind}`}>
                     {status.message}
                   </div>
+                  <button
+                    type="button"
+                    className="delete-btn"
+                    onClick={() => handleDeleteDocument(doc._id)}
+                    disabled={deletingDocId === doc._id}
+                    style={{
+                      marginTop: "10px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <Trash2 size={14} />
+                    {deletingDocId === doc._id
+                      ? "Deleting..."
+                      : "Delete Document"}
+                  </button>
                   {doc.notes ? (
                     <p className="compliance-doc-notes">
                       <strong>Notes:</strong> {doc.notes}

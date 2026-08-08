@@ -143,14 +143,6 @@ const taskSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-vehicleSchema.pre("save", function (next) {
-  if (!this.vehicleNumber || !this.vehicleNumber.toString().trim()) {
-    this.vehicleNumber =
-      this.vehicleNumber || this._id?.toString() || "Unknown";
-  }
-  next();
-});
-
 const Vehicle = mongoose.model("Vehicle", vehicleSchema);
 const Task = mongoose.model("Task", taskSchema);
 
@@ -306,11 +298,17 @@ app.post(
         notes: req.body.notes?.trim() || "",
       };
 
-      const updatedVehicle = await Vehicle.findByIdAndUpdate(
-        req.params.vehicleId,
-        { $push: { documents: newDoc } },
-        { new: true, runValidators: false },
+      const vehicle = await Vehicle.findById(req.params.vehicleId);
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
+
+      vehicle.documents = vehicle.documents.filter(
+        (doc) =>
+          doc.documentType !== documentType || doc.documentType === "other",
       );
+      vehicle.documents.push(newDoc);
+      const updatedVehicle = await vehicle.save({ validateBeforeSave: false });
 
       if (!updatedVehicle) {
         return res.status(404).json({ error: "Vehicle not found" });
@@ -347,6 +345,41 @@ app.get(
       res.status(200).json(complianceDocuments);
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+app.delete(
+  "/api/vehicles/:vehicleId/compliance-documents/:documentId",
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      const vehicle = await Vehicle.findById(req.params.vehicleId);
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
+
+      const updatedVehicle = await Vehicle.findByIdAndUpdate(
+        req.params.vehicleId,
+        {
+          $pull: {
+            documents: {
+              _id: new mongoose.Types.ObjectId(req.params.documentId),
+            },
+          },
+        },
+        { new: true, runValidators: false },
+      );
+
+      if (!updatedVehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
+
+      return res.status(200).json({
+        message: "Compliance document deleted successfully",
+      });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
     }
   },
 );

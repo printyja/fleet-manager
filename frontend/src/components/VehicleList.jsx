@@ -22,15 +22,22 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
   const getDisplayVehicleId = (vehicle) =>
     vehicle.vehicleNumber || vehicle.vehicleId || vehicle.vehicleID || "N/A";
 
-  const filteredVehicles = vehicles.filter((vehicle) => {
+  const safeVehicles = Array.isArray(vehicles) ? vehicles : [];
+
+  const filteredVehicles = safeVehicles.filter((vehicle) => {
     const searchLower = searchTerm.toLowerCase();
     const vNum = getDisplayVehicleId(vehicle).toLowerCase();
+    const make = String(vehicle.make || "").toLowerCase();
+    const model = String(vehicle.model || "").toLowerCase();
+    const vin = String(vehicle.vin || "").toLowerCase();
+    const year = String(vehicle.year || "");
+
     return (
       vNum.includes(searchLower) ||
-      vehicle.make.toLowerCase().includes(searchLower) ||
-      vehicle.model.toLowerCase().includes(searchLower) ||
-      vehicle.vin.toLowerCase().includes(searchLower) ||
-      vehicle.year.toString().includes(searchLower)
+      make.includes(searchLower) ||
+      model.includes(searchLower) ||
+      vin.includes(searchLower) ||
+      year.includes(searchLower)
     );
   });
 
@@ -101,7 +108,14 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
           gap: "10px",
         }}
       >
-        <h2 style={{ margin: 0, color: "#3b82f6", height: "30px", marginTop: "10px" }}>
+        <h2
+          style={{
+            margin: 0,
+            color: "#3b82f6",
+            height: "30px",
+            marginTop: "10px",
+          }}
+        >
           My Fleet
         </h2>
 

@@ -6,29 +6,86 @@ const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
 const dns = require("dns");
+const crypto = require("crypto");
 require("dotenv").config();
 
 const app = express();
 app.use(express.json());
 
 const isVercelRuntime = Boolean(process.env.VERCEL);
+const isProduction = process.env.NODE_ENV === "production" || isVercelRuntime;
+const mongoURI = process.env.MONGO_URI;
+const sessionSecret = process.env.SESSION_SECRET || "fleet-manager-dev-secret";
 const uploadDirectory = isVercelRuntime
   ? path.join("/tmp", "uploads")
   : path.join(__dirname, "uploads");
 
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || "fleet-manager-dev-secret",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: false,
-      maxAge: 1000 * 60 * 60 * 8,
-    },
-  }),
-);
+if (isProduction) {
+  app.set("trust proxy", 1);
+}
+
+const sessionOptions = {
+  secret: sessionSecret,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isProduction,
+    maxAge: 1000 * 60 * 60 * 8,
+  },
+};
+
+app.use(session(sessionOptions));
+
+const parseCookies = (cookieHeader = "") =>
+  cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .reduce((acc, part) => {
+      const separatorIndex = part.indexOf("=");
+      if (separatorIndex === -1) return acc;
+      const key = part.slice(0, separatorIndex);
+      const value = part.slice(separatorIndex + 1);
+      acc[key] = decodeURIComponent(value);
+      return acc;
+    }, {});
+
+const signRole = (role) => {
+  const signature = crypto
+    .createHmac("sha256", sessionSecret)
+    .update(role)
+    .digest("hex");
+
+  return `${role}.${signature}`;
+};
+
+const verifyRoleToken = (token) => {
+  const [role, signature] = String(token || "").split(".");
+  if (!role || !signature) return null;
+  if (role !== "admin" && role !== "mechanic") return null;
+
+  const expectedSignature = crypto
+    .createHmac("sha256", sessionSecret)
+    .update(role)
+    .digest("hex");
+
+  if (signature !== expectedSignature) return null;
+  return role;
+};
+
+app.use((req, res, next) => {
+  if (!req.session?.role) {
+    const cookies = parseCookies(req.headers.cookie || "");
+    const cookieRole = verifyRoleToken(cookies.fm_role);
+    if (cookieRole) {
+      req.session.role = cookieRole;
+    }
+  }
+
+  next();
+});
 
 app.use(express.static("public"));
 
@@ -43,7 +100,6 @@ if (!fs.existsSync(uploadDirectory)) {
 }
 
 // 1. Connect to MongoDB Cloud
-const mongoURI = process.env.MONGO_URI;
 if (!mongoURI) {
   console.warn(
     "Missing MONGO_URI in environment variables; continuing without a database connection.",
@@ -86,6 +142,12 @@ app.post("/api/auth/login", (req, res) => {
 
   if (role === "mechanic") {
     req.session.role = "mechanic";
+    res.cookie("fm_role", signRole("mechanic"), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: isProduction,
+      maxAge: 1000 * 60 * 60 * 8,
+    });
     return res.status(200).json({ role: "mechanic" });
   }
 
@@ -105,6 +167,12 @@ app.post("/api/auth/login", (req, res) => {
     }
 
     req.session.role = "admin";
+    res.cookie("fm_role", signRole("admin"), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: isProduction,
+      maxAge: 1000 * 60 * 60 * 8,
+    });
     return res.status(200).json({ role: "admin" });
   }
 
@@ -123,6 +191,7 @@ app.get("/api/auth/session", (req, res) => {
 app.post("/api/auth/logout", (req, res) => {
   req.session.destroy(() => {
     res.clearCookie("connect.sid");
+    res.clearCookie("fm_role");
     res.status(200).json({ message: "Logged out" });
   });
 });

@@ -9,7 +9,7 @@ function MechanicView({ vehicles }) {
   useEffect(() => {
     fetch("/api/tasks")
       .then((res) => res.json())
-      .then((data) => setTasks(data))
+      .then((data) => setTasks(Array.isArray(data) ? data : []))
       .catch((err) => console.error("Error fetching tasks:", err));
   }, []);
 
@@ -34,7 +34,8 @@ function MechanicView({ vehicles }) {
 
   // Helper function to get clean vehicle details for the task
   const getVehicleDetails = (vehicleId) => {
-    const vehicle = vehicles.find((v) => v._id === vehicleId);
+    const safeVehicles = Array.isArray(vehicles) ? vehicles : [];
+    const vehicle = safeVehicles.find((v) => v._id === vehicleId);
     if (vehicle) {
       return `Unit #${vehicle.vehicleNumber || "N/A"} - ${vehicle.year} ${vehicle.model}`;
     }
@@ -57,11 +58,13 @@ function MechanicView({ vehicles }) {
     XLSX.writeFile(workbook, "LJG_Maintenance_Logs.xlsx");
   };
 
-  const pendingTasks = tasks
+  const safeTasks = Array.isArray(tasks) ? tasks : [];
+
+  const pendingTasks = safeTasks
     .filter((task) => task.status === "Pending")
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-  const completedTasks = tasks
+  const completedTasks = safeTasks
     .filter((task) => task.status === "Completed")
     .sort(
       (a, b) =>

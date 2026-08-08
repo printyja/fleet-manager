@@ -17,11 +17,23 @@ function App() {
   const [authError, setAuthError] = useState("");
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
-  const fetchVehicles = () => {
-    fetch("/api/vehicles")
-      .then((res) => res.json())
-      .then((data) => setVehicles(data))
-      .catch((err) => console.error("Error fetching vehicles:", err));
+  const fetchVehicles = async () => {
+    try {
+      const response = await fetch("/api/vehicles");
+
+      if (response.status === 401) {
+        setSessionRole(null);
+        setAuthError("Session expired. Please log in again.");
+        setVehicles([]);
+        return;
+      }
+
+      const data = await response.json();
+      setVehicles(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Error fetching vehicles:", err);
+      setVehicles([]);
+    }
   };
 
   useEffect(() => {
@@ -52,7 +64,13 @@ function App() {
   }, [sessionRole]);
 
   const handleVehicleAdded = (newVehicle) => {
-    setVehicles([...vehicles, newVehicle]);
+    setVehicles((prevVehicles) => {
+      if (!newVehicle || typeof newVehicle !== "object") {
+        return prevVehicles;
+      }
+
+      return [...prevVehicles, newVehicle];
+    });
   };
 
   const handleLogin = async ({ role, password }) => {
@@ -63,7 +81,12 @@ function App() {
         body: JSON.stringify({ role, password }),
       });
 
-      const data = await response.json();
+      let data = {};
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
       if (!response.ok) {
         setAuthError(data.error || "Login failed.");
         return false;

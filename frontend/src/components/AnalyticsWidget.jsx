@@ -8,14 +8,19 @@ function AnalyticsWidget({ vehicles }) {
   useEffect(() => {
     fetch("/api/tasks")
       .then((res) => res.json())
-      .then((data) => setTasks(data))
+      .then((data) => setTasks(Array.isArray(data) ? data : []))
       .catch((err) => console.error("Error fetching tasks:", err));
   }, []);
 
   // Calculate our metrics
-  const totalVehicles = vehicles.length;
-  const activeVehicles = vehicles.filter((v) => v.status === "Active").length;
-  const pendingTasks = tasks.filter((t) => t.status === "Pending").length;
+  const safeVehicles = Array.isArray(vehicles) ? vehicles : [];
+  const safeTasks = Array.isArray(tasks) ? tasks : [];
+
+  const totalVehicles = safeVehicles.length;
+  const activeVehicles = safeVehicles.filter(
+    (v) => v.status === "Active",
+  ).length;
+  const pendingTasks = safeTasks.filter((t) => t.status === "Pending").length;
 
   return (
     <div className="analytics-grid">

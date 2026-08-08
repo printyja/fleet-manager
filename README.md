@@ -219,3 +219,7 @@ Open the frontend URL shown by Vite (typically `http://localhost:5173`).
 ## License
 
 This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
+
+---
+
+© 2025 Fleet Asset Tracking. All rights reserved.

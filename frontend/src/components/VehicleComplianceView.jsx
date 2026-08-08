@@ -58,6 +58,9 @@ function VehicleComplianceView({ vehicle, onBack, onDataChanged }) {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [complianceNotes, setComplianceNotes] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
   const [formData, setFormData] = useState({
     documentType: "registration",
     expirationDate: "",
@@ -84,6 +87,27 @@ function VehicleComplianceView({ vehicle, onBack, onDataChanged }) {
 
   useEffect(() => {
     loadComplianceDocuments();
+  }, [vehicle._id]);
+
+  const loadComplianceNotes = async () => {
+    try {
+      const response = await fetch(
+        `/api/vehicles/${vehicle._id}/compliance-notes`,
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load compliance notes");
+      }
+
+      setComplianceNotes(data.notes || "");
+    } catch (error) {
+      console.error("Error loading compliance notes:", error);
+    }
+  };
+
+  useEffect(() => {
+    loadComplianceNotes();
+    setNotesSaved(false);
   }, [vehicle._id]);
 
   const latestByType = useMemo(() => {
@@ -149,6 +173,35 @@ function VehicleComplianceView({ vehicle, onBack, onDataChanged }) {
       window.alert(error.message || "Could not upload compliance document");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleSaveNotes = async () => {
+    setSavingNotes(true);
+    setNotesSaved(false);
+
+    try {
+      const response = await fetch(
+        `/api/vehicles/${vehicle._id}/compliance-notes`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notes: complianceNotes }),
+        },
+      );
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Could not save notes");
+      }
+
+      setComplianceNotes(data.notes || "");
+      setNotesSaved(true);
+    } catch (error) {
+      console.error("Error saving compliance notes:", error);
+      window.alert(error.message || "Could not save notes");
+    } finally {
+      setSavingNotes(false);
     }
   };
 
@@ -266,6 +319,11 @@ function VehicleComplianceView({ vehicle, onBack, onDataChanged }) {
                   <div className={`status-pill ${status.kind}`}>
                     {status.message}
                   </div>
+                  {doc.notes ? (
+                    <p className="compliance-doc-notes">
+                      <strong>Notes:</strong> {doc.notes}
+                    </p>
+                  ) : null}
                 </>
               )}
             </div>
@@ -316,6 +374,37 @@ function VehicleComplianceView({ vehicle, onBack, onDataChanged }) {
             {uploading ? "Uploading..." : "Upload Document"}
           </button>
         </form>
+      </div>
+
+      <div className="compliance-notes-panel">
+        <h3 style={{ marginTop: 0 }}>Compliance Notes</h3>
+        <p className="compliance-notes-help">
+          Add general notes for this vehicle&apos;s compliance record and click
+          Save Note.
+        </p>
+        <textarea
+          className="compliance-section-notes-input"
+          value={complianceNotes}
+          onChange={(e) => {
+            setComplianceNotes(e.target.value);
+            setNotesSaved(false);
+          }}
+          placeholder="Enter notes here..."
+          rows={5}
+        />
+        <div className="compliance-notes-actions">
+          <button
+            type="button"
+            className="submit-btn"
+            onClick={handleSaveNotes}
+            disabled={savingNotes}
+          >
+            {savingNotes ? "Saving..." : "Save Note"}
+          </button>
+          {notesSaved ? (
+            <span className="compliance-notes-saved">Note saved.</span>
+          ) : null}
+        </div>
       </div>
     </div>
   );

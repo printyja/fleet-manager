@@ -36,6 +36,21 @@ body {
   width: 100%;
   min-height: 100vh;
   padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-main {
+  flex: 1;
+}
+
+.app-footer {
+  margin-top: 20px;
+  padding: 12px 10px 4px;
+  border-top: 1px solid #dbe5ef;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  text-align: center;
 }
 
 .header {
@@ -635,6 +650,56 @@ input:focus {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
+}
+
+.compliance-doc-notes {
+  margin: 10px 0 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #dbe5ef;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.compliance-notes-panel {
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid #e2eaf2;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.compliance-notes-help {
+  margin: 0 0 10px 0;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+
+.compliance-section-notes-input {
+  width: 100%;
+  border: 1px solid #cdd9e5;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: #fff;
+  resize: vertical;
+  min-height: 120px;
+}
+
+.compliance-notes-actions {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.compliance-notes-saved {
+  font-size: 0.85rem;
+  color: #166534;
+  font-weight: 700;
 }
 
 .compliance-upload-form button {

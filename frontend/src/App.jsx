@@ -94,6 +94,11 @@ function App() {
   };
 
   let content = null;
+  const appFooter = (
+    <footer className="app-footer">
+      Site by Yinet © 2025 Fleet Asset Tracking. All rights reserved.
+    </footer>
+  );
 
   if (sessionRole === "mechanic") {
     content = <MechanicView vehicles={vehicles} />;
@@ -130,17 +135,20 @@ function App() {
     return (
       <div className="dashboard">
         <Header />
-        {isAuthChecking ? (
-          <div className="login-shell">
-            <div className="login-card">
-              <p className="login-subtitle" style={{ margin: 0 }}>
-                Checking session...
-              </p>
+        <main className="dashboard-main">
+          {isAuthChecking ? (
+            <div className="login-shell">
+              <div className="login-card">
+                <p className="login-subtitle" style={{ margin: 0 }}>
+                  Checking session...
+                </p>
+              </div>
             </div>
-          </div>
-        ) : (
-          <Login onLogin={handleLogin} errorMessage={authError} />
-        )}
+          ) : (
+            <Login onLogin={handleLogin} errorMessage={authError} />
+          )}
+        </main>
+        {appFooter}
       </div>
     );
   }
@@ -149,40 +157,45 @@ function App() {
     <div className="dashboard">
       <Header />
 
-      <div className="session-strip">
-        <span>
-          Signed in as{" "}
-          <strong>{sessionRole === "admin" ? "Admin" : "Mechanic"}</strong>
-        </span>
-        <button
-          type="button"
-          className="session-switch-btn"
-          onClick={handleLogout}
-        >
-          Switch User
-        </button>
-      </div>
-
-      {sessionRole === "admin" && (
-        <div className="tabs">
+      <main className="dashboard-main">
+        <div className="session-strip">
+          <span>
+            Signed in as{" "}
+            <strong>{sessionRole === "admin" ? "Admin" : "Mechanic"}</strong>
+          </span>
           <button
             type="button"
-            className={activeTab === "admin" ? "tab-btn active" : "tab-btn"}
-            onClick={() => setActiveTab("admin")}
+            className="session-switch-btn"
+            onClick={handleLogout}
           >
-            Admin Dashboard
-          </button>
-          <button
-            type="button"
-            className={activeTab === "mechanic" ? "tab-btn active" : "tab-btn"}
-            onClick={() => setActiveTab("mechanic")}
-          >
-            Mechanic Portal
+            Switch User
           </button>
         </div>
-      )}
 
-      {content}
+        {sessionRole === "admin" && (
+          <div className="tabs">
+            <button
+              type="button"
+              className={activeTab === "admin" ? "tab-btn active" : "tab-btn"}
+              onClick={() => setActiveTab("admin")}
+            >
+              Admin Dashboard
+            </button>
+            <button
+              type="button"
+              className={
+                activeTab === "mechanic" ? "tab-btn active" : "tab-btn"
+              }
+              onClick={() => setActiveTab("mechanic")}
+            >
+              Mechanic Portal
+            </button>
+          </div>
+        )}
+
+        {content}
+      </main>
+      {appFooter}
     </div>
   );
 }

@@ -115,6 +115,7 @@ const vehicleSchema = new mongoose.Schema(
     model: { type: String, required: true },
     vin: { type: String, required: true },
     status: { type: String, default: "Active" },
+    complianceNotes: { type: String, default: "" },
     documents: [
       {
         title: String,
@@ -125,6 +126,7 @@ const vehicleSchema = new mongoose.Schema(
         },
         fileUrl: String,
         expirationDate: Date,
+        notes: String,
         uploadDate: { type: Date, default: Date.now },
       },
     ],
@@ -241,6 +243,7 @@ app.post(
         documentType: "other",
         fileUrl: `/uploads/${req.file.filename}`,
         expirationDate: req.body.expirationDate || null,
+        notes: req.body.notes?.trim() || "",
       };
 
       vehicle.documents.push(newDoc);
@@ -289,6 +292,7 @@ app.post(
         documentType,
         fileUrl: `/uploads/${req.file.filename}`,
         expirationDate: req.body.expirationDate || null,
+        notes: req.body.notes?.trim() || "",
       };
 
       vehicle.documents.push(newDoc);
@@ -325,6 +329,47 @@ app.get(
       res.status(200).json(complianceDocuments);
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+app.get(
+  "/api/vehicles/:vehicleId/compliance-notes",
+  requireRole("admin", "mechanic"),
+  async (req, res) => {
+    try {
+      const vehicle = await Vehicle.findById(req.params.vehicleId);
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
+
+      return res.status(200).json({ notes: vehicle.complianceNotes || "" });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+app.patch(
+  "/api/vehicles/:vehicleId/compliance-notes",
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      const notes = typeof req.body?.notes === "string" ? req.body.notes : "";
+
+      const updatedVehicle = await Vehicle.findByIdAndUpdate(
+        req.params.vehicleId,
+        { complianceNotes: notes.trim() },
+        { new: true },
+      );
+
+      if (!updatedVehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
+
+      return res.status(200).json({ notes: updatedVehicle.complianceNotes });
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
     }
   },
 );

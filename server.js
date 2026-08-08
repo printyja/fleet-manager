@@ -36,15 +36,17 @@ if (!fs.existsSync("./uploads")) {
 // 1. Connect to MongoDB Cloud
 const mongoURI = process.env.MONGO_URI;
 if (!mongoURI) {
-  console.error("Missing MONGO_URI in environment variables.");
-  process.exit(1);
+  console.warn(
+    "Missing MONGO_URI in environment variables; continuing without a database connection.",
+  );
+} else {
+  // Use public resolvers to avoid local DNS paths that refuse Atlas SRV lookups.
+  dns.setServers(["1.1.1.1", "8.8.8.8"]);
+  mongoose
+    .connect(mongoURI, { serverSelectionTimeoutMS: 5000 })
+    .then(() => console.log("Successfully connected to MongoDB Cloud!"))
+    .catch((error) => console.log("Error connecting to MongoDB:", error));
 }
-// Use public resolvers to avoid local DNS paths that refuse Atlas SRV lookups.
-dns.setServers(["1.1.1.1", "8.8.8.8"]);
-mongoose
-  .connect(mongoURI, { serverSelectionTimeoutMS: 5000 })
-  .then(() => console.log("Successfully connected to MongoDB Cloud!"))
-  .catch((error) => console.log("Error connecting to MongoDB:", error));
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "uploads/"),
   filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
@@ -147,21 +149,23 @@ const Vehicle = mongoose.model("Vehicle", vehicleSchema);
 const Task = mongoose.model("Task", taskSchema);
 
 // --- AUTOMATED PM SYSTEM ---
-cron.schedule("0 0 * * *", async () => {
-  try {
-    const activeVehicles = await Vehicle.find({ status: "Active" });
-    for (let vehicle of activeVehicles) {
-      const newTask = new Task({
-        vehicleId: vehicle._id,
-        description: "Automated PM: Standard 30-Day Fleet Inspection",
-        status: "Pending",
-      });
-      await newTask.save();
+if (process.env.NODE_ENV !== "test") {
+  cron.schedule("0 0 * * *", async () => {
+    try {
+      const activeVehicles = await Vehicle.find({ status: "Active" });
+      for (let vehicle of activeVehicles) {
+        const newTask = new Task({
+          vehicleId: vehicle._id,
+          description: "Automated PM: Standard 30-Day Fleet Inspection",
+          status: "Pending",
+        });
+        await newTask.save();
+      }
+    } catch (error) {
+      console.error("Error in automated PM system:", error);
     }
-  } catch (error) {
-    console.error("Error in automated PM system:", error);
-  }
-});
+  });
+}
 
 // 3. VEHICLE ROUTES
 app.post("/api/vehicles", requireRole("admin"), async (req, res) => {
@@ -218,6 +222,10 @@ app.patch("/api/vehicles/:id", requireRole("admin"), async (req, res) => {
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
+});
+
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
 });
 
 app.delete("/api/vehicles/:id", requireRole("admin"), async (req, res) => {
@@ -481,7 +489,16 @@ app.get(
   },
 );
 
-const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`Fleet Manager API is running on http://localhost:${PORT}`);
+const PORT = process.env.PORT || 3000;
+
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
 });
+
+if (process.env.VERCEL) {
+  module.exports = app;
+} else {
+  app.listen(PORT, () => {
+    console.log(`Fleet Manager API is running on http://localhost:${PORT}`);
+  });
+}

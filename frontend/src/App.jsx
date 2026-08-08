@@ -1,86 +1,58 @@
 import { useState, useEffect } from "react";
-import { Truck, Activity, Hash } from "lucide-react";
+import Header from "./components/Header";
+import VehicleForm from "./components/VehicleForm";
+import VehicleList from "./components/VehicleList";
+import MechanicView from "./components/MechanicView";
 import "./App.css";
 
 function App() {
   const [vehicles, setVehicles] = useState([]);
+  const [activeTab, setActiveTab] = useState("admin");
 
-  // This talks to your backend to get the fleet data when the page loads
-  useEffect(() => {
+  // Created a reusable function to fetch data so we can call it after uploads
+  const fetchVehicles = () => {
     fetch("/api/vehicles")
       .then((res) => res.json())
       .then((data) => setVehicles(data))
       .catch((err) => console.error("Error fetching vehicles:", err));
+  };
+
+  useEffect(() => {
+    fetchVehicles();
   }, []);
+
+  const handleVehicleAdded = (newVehicle) => {
+    setVehicles([...vehicles, newVehicle]);
+  };
 
   return (
     <div className="dashboard">
-      <header className="header">
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <Truck size={28} color="white" />
-          <h1
-            style={{
-              margin: 0,
-              fontSize: "22px",
-              fontWeight: "600",
-              letterSpacing: "0.5px",
-            }}
-          >
-            Association JP Enterprises Inc - Admin Dashboard
-          </h1>
-        </div>
-        <p style={{ margin: "6px 0 0 0", fontSize: "14px", color: "#cbd5e1" }}>
-          Live Fleet Asset Tracking
-        </p>
-      </header>
+      <Header />
 
-      <h2>My Fleet</h2>
-
-      <div className="fleet-grid">
-        {vehicles.length === 0 ? (
-          <p>Loading vehicles...</p>
-        ) : (
-          vehicles.map((vehicle) => (
-            <div key={vehicle._id} className="card">
-              <h3
-                style={{
-                  borderBottom: "1px solid #eee",
-                  paddingBottom: "10px",
-                  marginTop: 0,
-                }}
-              >
-                {vehicle.year} {vehicle.make} {vehicle.model}
-              </h3>
-
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  marginBottom: "8px",
-                }}
-              >
-                <Hash size={18} color="#666" />
-                <span>
-                  <strong>VIN:</strong> {vehicle.vin}
-                </span>
-              </div>
-
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "8px" }}
-              >
-                <Activity
-                  size={18}
-                  color={vehicle.status === "Active" ? "green" : "orange"}
-                />
-                <span>
-                  <strong>Status:</strong> {vehicle.status}
-                </span>
-              </div>
-            </div>
-          ))
-        )}
+      <div className="tabs">
+        <button
+          className={activeTab === "admin" ? "tab-btn active" : "tab-btn"}
+          onClick={() => setActiveTab("admin")}
+        >
+          Admin Dashboard
+        </button>
+        <button
+          className={activeTab === "mechanic" ? "tab-btn active" : "tab-btn"}
+          onClick={() => setActiveTab("mechanic")}
+        >
+          Mechanic Portal
+        </button>
       </div>
+
+      {activeTab === "admin" ? (
+        <div className="layout-grid">
+          <VehicleForm onVehicleAdded={handleVehicleAdded} />
+          {/* Pass the refresh function down to the list */}
+          <VehicleList vehicles={vehicles} refreshData={fetchVehicles} />
+        </div>
+      ) : (
+        <MechanicView />
+      )}
     </div>
   );
 }

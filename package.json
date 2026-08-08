@@ -12,6 +12,8 @@
   "type": "commonjs",
   "dependencies": {
     "express": "^5.2.1",
-    "mongoose": "^9.9.1"
+    "mongoose": "^9.9.1",
+    "multer": "^2.2.0",
+    "node-cron": "^4.6.0"
   }
 }

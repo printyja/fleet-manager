@@ -1,60 +1,92 @@
-// 1. Bring in the tools we installed
 const express = require("express");
 const dns = require("dns");
 const mongoose = require("mongoose");
+const cron = require("node-cron");
+const multer = require("multer");
+const fs = require("fs");
+const path = require("path");
 
-// 2. Initialize our app
 const app = express();
-
-// This tells our app to understand data sent in JSON format
 app.use(express.json());
+app.use(express.static("public"));
 
-// 3. Connect to MongoDB Cloud
-// PASTE YOUR CONNECTION STRING BETWEEN THE QUOTES BELOW
+// Serve the uploads folder so the browser can view the PDFs
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// Ensure uploads directory exists
+if (!fs.existsSync("./uploads")) {
+  fs.mkdirSync("./uploads");
+}
+
+// 1. Connect to MongoDB Cloud (PASTE YOUR CONNECTION STRING HERE)
 const mongoURI =
   "mongodb+srv://yinetfleet:Fleet777@fleetcluster.xszfbwn.mongodb.net/?appName=FleetCluster";
 
-// Use public DNS resolvers so Node can resolve MongoDB Atlas SRV records
-// when the default local DNS path refuses the lookup.
+// Use public DNS resolvers to avoid local DNS paths that can refuse Atlas SRV lookups.
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 mongoose
   .connect(mongoURI, { serverSelectionTimeoutMS: 5000 })
-  .then(() => {
-    console.log("Successfully connected to MongoDB Cloud!");
-  })
-  .catch((error) => {
-    console.log("Error connecting to MongoDB:", error);
-  });
+  .then(() => console.log("Successfully connected to MongoDB Cloud!"))
+  .catch((error) => console.log("Error connecting to MongoDB:", error));
 
-// --- 1. SCHEMAS (The Blueprints) ---
+// Configure Multer for file storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/"),
+  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
+});
+const upload = multer({ storage });
+
+// 2. SCHEMAS & MODELS
 const vehicleSchema = new mongoose.Schema(
   {
     year: { type: Number, required: true },
     make: { type: String, required: true },
     model: { type: String, required: true },
     vin: { type: String, required: true },
-    status: { type: String, default: "Active" }, // Automatically sets new vehicles to Active
-  },
-  { timestamps: true },
-); // Automatically adds createdAt dates
-
-const taskSchema = new mongoose.Schema(
-  {
-    vehicleId: { type: String, required: true }, // Links the task to a specific vehicle
-    description: { type: String, required: true },
-    status: { type: String, default: "Pending" }, // Mechanics will update this to "Completed"
+    status: { type: String, default: "Active" },
+    // New field to store document records
+    documents: [
+      {
+        title: String,
+        fileUrl: String,
+        uploadDate: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true },
 );
 
-// --- 2. MODELS (The Compilers) ---
+const taskSchema = new mongoose.Schema(
+  {
+    vehicleId: { type: String, required: true },
+    description: { type: String, required: true },
+    status: { type: String, default: "Pending" },
+  },
+  { timestamps: true },
+);
+
 const Vehicle = mongoose.model("Vehicle", vehicleSchema);
 const Task = mongoose.model("Task", taskSchema);
 
-// --- 3. ROUTES ---
+// --- AUTOMATED PM SYSTEM ---
+cron.schedule("0 0 * * *", async () => {
+  try {
+    const activeVehicles = await Vehicle.find({ status: "Active" });
+    for (let vehicle of activeVehicles) {
+      const newTask = new Task({
+        vehicleId: vehicle._id,
+        description: "Automated PM: Standard 30-Day Fleet Inspection",
+        status: "Pending",
+      });
+      await newTask.save();
+    }
+  } catch (error) {
+    console.error("Error in automated PM system:", error);
+  }
+});
 
-// Admin: Add a new vehicle
+// 3. ROUTES
 app.post("/api/vehicles", async (req, res) => {
   try {
     const newVehicle = new Vehicle(req.body);
@@ -67,7 +99,43 @@ app.post("/api/vehicles", async (req, res) => {
   }
 });
 
-// Admin: Create a maintenance task
+app.get("/api/vehicles", async (req, res) => {
+  try {
+    const vehicles = await Vehicle.find();
+    res.status(200).json(vehicles);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- NEW DOCUMENT UPLOAD ROUTE ---
+app.post(
+  "/api/vehicles/:vehicleId/documents",
+  upload.single("document"),
+  async (req, res) => {
+    try {
+      const vehicle = await Vehicle.findById(req.params.vehicleId);
+      if (!vehicle) return res.status(404).json({ error: "Vehicle not found" });
+
+      const newDoc = {
+        title: req.body.title,
+        fileUrl: `/uploads/${req.file.filename}`,
+      };
+
+      vehicle.documents.push(newDoc);
+      const updatedVehicle = await vehicle.save();
+
+      res.status(200).json({
+        message: "Document uploaded successfully",
+        data: updatedVehicle,
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+// Task Routes
 app.post("/api/tasks", async (req, res) => {
   try {
     const newTask = new Task(req.body);
@@ -80,17 +148,6 @@ app.post("/api/tasks", async (req, res) => {
   }
 });
 
-// Admin/Mechanic: View all vehicles
-app.get("/api/vehicles", async (req, res) => {
-  try {
-    const vehicles = await Vehicle.find(); // Fetches everything in the Vehicles collection
-    res.status(200).json(vehicles);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Mechanic: View all tasks
 app.get("/api/tasks", async (req, res) => {
   try {
     const tasks = await Task.find();
@@ -99,34 +156,20 @@ app.get("/api/tasks", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-// Mechanic: Update a task's status (e.g., mark as "Completed")
+
 app.patch("/api/tasks/:taskId", async (req, res) => {
   try {
-    // Finds the task by the ID in the URL and updates it with the data sent in the request
     const updatedTask = await Task.findByIdAndUpdate(
       req.params.taskId,
       { status: req.body.status },
-      { new: true }, // Tells MongoDB to send back the newly updated version
+      { new: true },
     );
-    res
-      .status(200)
-      .json({ message: "Task status updated!", data: updatedTask });
+    res.status(200).json({ data: updatedTask });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 });
 
-// Admin: Get the maintenance history for one specific vehicle
-app.get('/api/vehicles/:vehicleId/tasks', async (req, res) => {
-    try {
-        // Searches the Tasks collection for any task matching this specific vehicleId
-        const history = await Task.find({ vehicleId: req.params.vehicleId });
-        res.status(200).json(history);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-// 4. Turn the server on so it listens for requests
 const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Fleet Manager API is running on http://localhost:${PORT}`);

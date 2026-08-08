@@ -11,6 +11,11 @@ require("dotenv").config();
 const app = express();
 app.use(express.json());
 
+const isVercelRuntime = Boolean(process.env.VERCEL);
+const uploadDirectory = isVercelRuntime
+  ? path.join("/tmp", "uploads")
+  : path.join(__dirname, "uploads");
+
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "fleet-manager-dev-secret",
@@ -27,10 +32,14 @@ app.use(
 
 app.use(express.static("public"));
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(uploadDirectory));
 
-if (!fs.existsSync("./uploads")) {
-  fs.mkdirSync("./uploads");
+if (!fs.existsSync(uploadDirectory)) {
+  try {
+    fs.mkdirSync(uploadDirectory, { recursive: true });
+  } catch (error) {
+    console.warn("Could not initialize uploads directory:", error.message);
+  }
 }
 
 // 1. Connect to MongoDB Cloud
@@ -48,7 +57,7 @@ if (!mongoURI) {
     .catch((error) => console.log("Error connecting to MongoDB:", error));
 }
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
+  destination: (req, file, cb) => cb(null, uploadDirectory),
   filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
 });
 const upload = multer({ storage });

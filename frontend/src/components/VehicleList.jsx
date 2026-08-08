@@ -1,17 +1,73 @@
-import { Activity, Hash, ExternalLink } from "lucide-react";
+import { useState } from "react";
+import { Activity, Hash, ExternalLink, Search } from "lucide-react";
 import TaskForm from "./TaskForm";
 import VehicleQRCode from "./VehicleQRCode";
-import DocumentUpload from "./DocumentUpload"; // Import the document tool
+import DocumentUpload from "./DocumentUpload";
 
 function VehicleList({ vehicles, refreshData }) {
+  // Add state to track the user's search input
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Filter the vehicles array before rendering it
+  const filteredVehicles = vehicles.filter((vehicle) => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      vehicle.make.toLowerCase().includes(searchLower) ||
+      vehicle.model.toLowerCase().includes(searchLower) ||
+      vehicle.vin.toLowerCase().includes(searchLower) ||
+      vehicle.year.toString().includes(searchLower)
+    );
+  });
+
   return (
     <div className="fleet-section">
-      <h2 style={{ marginTop: 0 }}>My Fleet</h2>
+      {/* Visual Search Bar next to the title */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "20px",
+          flexWrap: "wrap",
+          gap: "15px",
+        }}
+      >
+        <h2 style={{ margin: 0 }}>My Fleet</h2>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            background: "white",
+            padding: "8px 12px",
+            borderRadius: "8px",
+            border: "1px solid #ddd",
+            width: "100%",
+            maxWidth: "300px",
+          }}
+        >
+          <Search size={18} color="#94a3b8" style={{ marginRight: "8px" }} />
+          <input
+            type="text"
+            placeholder="Search Year, Make, Model, VIN..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{
+              border: "none",
+              outline: "none",
+              width: "100%",
+              fontSize: "14px",
+            }}
+          />
+        </div>
+      </div>
+
       <div className="fleet-grid">
-        {vehicles.length === 0 ? (
-          <p>Loading vehicles...</p>
+        {/* Map over 'filteredVehicles' instead of 'vehicles' */}
+        {filteredVehicles.length === 0 ? (
+          <p>No vehicles found matching "{searchTerm}".</p>
         ) : (
-          vehicles.map((vehicle) => (
+          filteredVehicles.map((vehicle) => (
             <div key={vehicle._id} className="card">
               <h3
                 style={{
@@ -49,7 +105,6 @@ function VehicleList({ vehicles, refreshData }) {
                 </span>
               </div>
 
-              {/* Display list of uploaded documents if they exist */}
               {vehicle.documents && vehicle.documents.length > 0 && (
                 <div
                   style={{

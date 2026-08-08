@@ -13,7 +13,12 @@ app.use(express.json());
 
 const isVercelRuntime = Boolean(process.env.VERCEL);
 const isProduction = process.env.NODE_ENV === "production" || isVercelRuntime;
-const mongoURI = process.env.MONGO_URI;
+const primaryMongoURI = process.env.MONGO_URI;
+const fallbackMongoURI =
+  process.env.MONGO_URI_DIRECT || process.env.MONGO_URI_FALLBACK;
+const mongoConnectionCandidates = [primaryMongoURI, fallbackMongoURI].filter(
+  Boolean,
+);
 const sessionSecret = process.env.SESSION_SECRET || "fleet-manager-dev-secret";
 const uploadDirectory = isVercelRuntime
   ? path.join("/tmp", "uploads")
@@ -99,8 +104,10 @@ if (!fs.existsSync(uploadDirectory)) {
 }
 
 let dbConnectionPromise = null;
+let activeMongoURI = null;
+
 const ensureDatabaseConnection = async () => {
-  if (!mongoURI) {
+  if (mongoConnectionCandidates.length === 0) {
     throw new Error("Database is not configured on this deployment.");
   }
 
@@ -114,27 +121,52 @@ const ensureDatabaseConnection = async () => {
   }
 
   if (!dbConnectionPromise) {
-    dbConnectionPromise = mongoose
-      .connect(mongoURI, {
-        serverSelectionTimeoutMS: 8000,
-        maxPoolSize: 10,
-      })
-      .then((connection) => {
-        console.log("Successfully connected to MongoDB Cloud!");
-        return connection;
-      })
-      .catch((error) => {
-        dbConnectionPromise = null;
-        throw error;
-      });
+    dbConnectionPromise = (async () => {
+      let lastError = null;
+
+      for (const candidateURI of mongoConnectionCandidates) {
+        try {
+          const connection = await mongoose.connect(candidateURI, {
+            serverSelectionTimeoutMS: 8000,
+            maxPoolSize: 10,
+          });
+
+          activeMongoURI = candidateURI;
+          if (candidateURI === primaryMongoURI) {
+            console.log("Successfully connected to MongoDB Cloud!");
+          } else {
+            console.log(
+              "Connected to MongoDB using fallback direct connection string.",
+            );
+          }
+
+          return connection;
+        } catch (error) {
+          lastError = error;
+          if (mongoose.connection.readyState !== 0) {
+            try {
+              await mongoose.disconnect();
+            } catch {
+              // Ignore disconnect errors between retries.
+            }
+          }
+        }
+      }
+
+      throw lastError || new Error("Unable to connect to MongoDB.");
+    })().catch((error) => {
+      dbConnectionPromise = null;
+      activeMongoURI = null;
+      throw error;
+    });
   }
 
   await dbConnectionPromise;
 };
 
-if (!mongoURI) {
+if (mongoConnectionCandidates.length === 0) {
   console.warn(
-    "Missing MONGO_URI in environment variables; continuing without a database connection.",
+    "Missing MONGO_URI and MONGO_URI_DIRECT/MONGO_URI_FALLBACK in environment variables; continuing without a database connection.",
   );
 } else {
   ensureDatabaseConnection().catch((error) => {

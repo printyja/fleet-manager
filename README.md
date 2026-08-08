@@ -136,6 +136,8 @@ In root `.env`:
 ADMIN_PASSWORD=your-admin-password
 SESSION_SECRET=your-session-secret
 MONGO_URI=your-mongodb-connection-string
+# Optional fallback if SRV DNS fails in your runtime environment
+MONGO_URI_DIRECT=your-direct-mongodb-connection-string
 ```
 
 ### 4. Run the App

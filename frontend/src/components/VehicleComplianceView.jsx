@@ -13,7 +13,7 @@ import {
 const UPCOMING_WINDOW_DAYS = 30;
 
 const complianceTypes = [
-  { key: "registration", label: "Copy of Registration" },
+  { key: "registration", label: "Registration" },
   { key: "dot_inspection", label: "Annual DOT Inspection" },
 ];
 
@@ -389,7 +389,7 @@ function VehicleComplianceView({ vehicle, onBack, onDataChanged }) {
             }
             required
           >
-            <option value="registration">Copy of Registration</option>
+            <option value="registration">Registration</option>
             <option value="dot_inspection">Annual DOT Inspection</option>
           </select>
 

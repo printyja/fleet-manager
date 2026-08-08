@@ -548,7 +548,7 @@ input:focus {
 }
 
 .modal-content {
-  width: min(560px, 92vw);
+  width: min(1000px, 100vw);
   max-height: 84vh;
   overflow-y: auto;
 }
@@ -581,7 +581,9 @@ input:focus {
 .compliance-upload-panel {
   padding: 18px;
 }
-
+.compliance-hero h2 {
+  color: black;
+}
 .compliance-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

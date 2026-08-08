@@ -31,7 +31,7 @@ function VehicleHistoryModal({ vehicle, onClose }) {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            borderBottom: "1px solid #eee",
+            borderBottom: "1px solid #94a4ca",
             paddingBottom: "12px",
             marginBottom: "16px",
           }}
@@ -42,6 +42,7 @@ function VehicleHistoryModal({ vehicle, onClose }) {
               display: "flex",
               alignItems: "center",
               gap: "8px",
+              color: "#1769aa",
             }}
           >
             <History size={22} /> Maintenance History
@@ -85,11 +86,24 @@ function VehicleHistoryModal({ vehicle, onClose }) {
                 <div
                   style={{
                     display: "flex",
+                    alignItems: "flex-start",
                     justifyContent: "space-between",
+                    gap: "10px",
                     marginBottom: "4px",
+                    fontSize: "16px",
                   }}
                 >
-                  <strong>{task.description}</strong>
+                  <div
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      overflowWrap: "anywhere",
+                      wordBreak: "break-word",
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    <strong>{task.description}</strong>
+                  </div>
                   <span
                     style={{
                       display: "flex",
@@ -99,6 +113,7 @@ function VehicleHistoryModal({ vehicle, onClose }) {
                       color:
                         task.status === "Completed" ? "#16a34a" : "#d97706",
                       fontWeight: "bold",
+                      flexShrink: 0,
                     }}
                   >
                     {task.status === "Completed" ? (

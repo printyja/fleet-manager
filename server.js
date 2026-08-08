@@ -109,7 +109,7 @@ app.post("/api/auth/logout", (req, res) => {
 // 2. SCHEMAS & MODELS
 const vehicleSchema = new mongoose.Schema(
   {
-    vehicleNumber: { type: String, required: true }, // NEW FIELD
+    vehicleNumber: { type: String, default: "" },
     year: { type: Number, required: true },
     make: { type: String, required: true },
     model: { type: String, required: true },
@@ -142,6 +142,14 @@ const taskSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+vehicleSchema.pre("save", function (next) {
+  if (!this.vehicleNumber || !this.vehicleNumber.toString().trim()) {
+    this.vehicleNumber =
+      this.vehicleNumber || this._id?.toString() || "Unknown";
+  }
+  next();
+});
 
 const Vehicle = mongoose.model("Vehicle", vehicleSchema);
 const Task = mongoose.model("Task", taskSchema);
@@ -235,19 +243,27 @@ app.post(
   upload.single("document"),
   async (req, res) => {
     try {
-      const vehicle = await Vehicle.findById(req.params.vehicleId);
-      if (!vehicle) return res.status(404).json({ error: "Vehicle not found" });
+      if (!req.file) {
+        return res.status(400).json({ error: "Document file is required" });
+      }
 
       const newDoc = {
-        title: req.body.title,
+        title: req.body.title || "Uploaded Document",
         documentType: "other",
         fileUrl: `/uploads/${req.file.filename}`,
         expirationDate: req.body.expirationDate || null,
         notes: req.body.notes?.trim() || "",
       };
 
-      vehicle.documents.push(newDoc);
-      const updatedVehicle = await vehicle.save();
+      const updatedVehicle = await Vehicle.findByIdAndUpdate(
+        req.params.vehicleId,
+        { $push: { documents: newDoc } },
+        { new: true, runValidators: false },
+      );
+
+      if (!updatedVehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
 
       res.status(200).json({
         message: "Document uploaded successfully",
@@ -265,11 +281,6 @@ app.post(
   upload.single("document"),
   async (req, res) => {
     try {
-      const vehicle = await Vehicle.findById(req.params.vehicleId);
-      if (!vehicle) {
-        return res.status(404).json({ error: "Vehicle not found" });
-      }
-
       if (!req.file) {
         return res.status(400).json({ error: "Document file is required" });
       }
@@ -295,8 +306,15 @@ app.post(
         notes: req.body.notes?.trim() || "",
       };
 
-      vehicle.documents.push(newDoc);
-      const updatedVehicle = await vehicle.save();
+      const updatedVehicle = await Vehicle.findByIdAndUpdate(
+        req.params.vehicleId,
+        { $push: { documents: newDoc } },
+        { new: true, runValidators: false },
+      );
+
+      if (!updatedVehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
 
       res.status(200).json({
         message: "Compliance document uploaded successfully",

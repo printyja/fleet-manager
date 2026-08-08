@@ -57,15 +57,23 @@ function MechanicView({ vehicles }) {
     XLSX.writeFile(workbook, "LJG_Maintenance_Logs.xlsx");
   };
 
-  const pendingTasks = tasks.filter((task) => task.status === "Pending");
-  const completedTasks = tasks.filter((task) => task.status === "Completed");
+  const pendingTasks = tasks
+    .filter((task) => task.status === "Pending")
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const completedTasks = tasks
+    .filter((task) => task.status === "Completed")
+    .sort(
+      (a, b) =>
+        new Date(b.updatedAt || b.createdAt) -
+        new Date(a.updatedAt || a.createdAt),
+    );
 
   return (
     <div className="mechanic-section">
       <div className="mechanic-toolbar">
         <div>
           <h2 className="mechanic-title">Mechanic Task Board</h2>
-          
         </div>
 
         <button
@@ -128,8 +136,7 @@ function MechanicView({ vehicles }) {
                   <strong>Job:</strong> {task.description}
                 </p>
                 <p className="task-date-label">
-                  Completed View:{" "}
-                  {new Date(task.updatedAt).toLocaleDateString()}
+                  Completed: {new Date(task.updatedAt).toLocaleDateString()}
                 </p>
                 <p className="task-done-label">Done</p>
               </div>

@@ -43,7 +43,10 @@ function VehicleForm({ onVehicleAdded }) {
       }
 
       if (!response.ok) {
-        throw new Error(result.error || "Could not save asset.");
+        const detailMessage = result.detail ? ` ${result.detail}` : "";
+        throw new Error(
+          `${result.error || "Could not save asset."}${detailMessage}`,
+        );
       }
 
       onVehicleAdded(result.data || payload);

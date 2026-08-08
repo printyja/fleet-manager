@@ -5,7 +5,6 @@ const cron = require("node-cron");
 const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
-const dns = require("dns");
 const crypto = require("crypto");
 require("dotenv").config();
 
@@ -99,20 +98,6 @@ if (!fs.existsSync(uploadDirectory)) {
   }
 }
 
-// 1. Connect to MongoDB Cloud
-if (!mongoURI) {
-  console.warn(
-    "Missing MONGO_URI in environment variables; continuing without a database connection.",
-  );
-} else {
-  // Use public resolvers to avoid local DNS paths that refuse Atlas SRV lookups.
-  dns.setServers(["1.1.1.1", "8.8.8.8"]);
-  mongoose
-    .connect(mongoURI, { serverSelectionTimeoutMS: 5000 })
-    .then(() => console.log("Successfully connected to MongoDB Cloud!"))
-    .catch((error) => console.log("Error connecting to MongoDB:", error));
-}
-
 let dbConnectionPromise = null;
 const ensureDatabaseConnection = async () => {
   if (!mongoURI) {
@@ -123,9 +108,21 @@ const ensureDatabaseConnection = async () => {
     return;
   }
 
+  if (mongoose.connection.readyState === 2 && dbConnectionPromise) {
+    await dbConnectionPromise;
+    return;
+  }
+
   if (!dbConnectionPromise) {
     dbConnectionPromise = mongoose
-      .connect(mongoURI, { serverSelectionTimeoutMS: 5000 })
+      .connect(mongoURI, {
+        serverSelectionTimeoutMS: 8000,
+        maxPoolSize: 10,
+      })
+      .then((connection) => {
+        console.log("Successfully connected to MongoDB Cloud!");
+        return connection;
+      })
       .catch((error) => {
         dbConnectionPromise = null;
         throw error;
@@ -134,6 +131,16 @@ const ensureDatabaseConnection = async () => {
 
   await dbConnectionPromise;
 };
+
+if (!mongoURI) {
+  console.warn(
+    "Missing MONGO_URI in environment variables; continuing without a database connection.",
+  );
+} else {
+  ensureDatabaseConnection().catch((error) => {
+    console.log("Error connecting to MongoDB:", error.message);
+  });
+}
 
 const requireDatabase = async (req, res, next) => {
   try {

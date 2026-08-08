@@ -1,11 +1,22 @@
 import { useState } from "react";
-import { Activity, Hash, ExternalLink, Search, Trash2 } from "lucide-react";
+import {
+  Activity,
+  Hash,
+  ExternalLink,
+  Search,
+  Trash2,
+  History,
+  Download,
+} from "lucide-react";
+import * as XLSX from "xlsx";
 import TaskForm from "./TaskForm";
 import VehicleQRCode from "./VehicleQRCode";
 import DocumentUpload from "./DocumentUpload";
+import VehicleHistoryModal from "./VehicleHistoryModal";
 
 function VehicleList({ vehicles, refreshData }) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
 
   const filteredVehicles = vehicles.filter((vehicle) => {
     const searchLower = searchTerm.toLowerCase();
@@ -17,22 +28,17 @@ function VehicleList({ vehicles, refreshData }) {
     );
   });
 
-  // --- Handle Deleting a Vehicle ---
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this vehicle?"))
       return;
-
     try {
       const response = await fetch(`/api/vehicles/${id}`, { method: "DELETE" });
-      if (response.ok) {
-        refreshData(); // Refresh the grid to remove the deleted truck
-      }
+      if (response.ok) refreshData();
     } catch (error) {
       console.error("Error deleting vehicle:", error);
     }
   };
 
-  // --- Handle Status Change ---
   const handleStatusChange = async (id, newStatus) => {
     try {
       const response = await fetch(`/api/vehicles/${id}`, {
@@ -40,12 +46,31 @@ function VehicleList({ vehicles, refreshData }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (response.ok) {
-        refreshData(); // Refresh to show the updated color and status
-      }
+      if (response.ok) refreshData();
     } catch (error) {
       console.error("Error updating status:", error);
     }
+  };
+
+  // --- UPGRADED: Handle Exporting Fleet to Excel (.xlsx) ---
+  const handleExportExcel = () => {
+    // 1. Format the data for Excel
+    const excelData = filteredVehicles.map((v) => ({
+      Year: v.year,
+      Make: v.make,
+      Model: v.model,
+      VIN: v.vin,
+      Status: v.status,
+      "Saved Documents": v.documents ? v.documents.length : 0,
+    }));
+
+    // 2. Create a worksheet and a workbook
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Fleet_Assets");
+
+    // 3. Trigger the download as an .xlsx file
+    XLSX.writeFile(workbook, "LJG_Fleet_Export.xlsx");
   };
 
   return (
@@ -66,27 +91,55 @@ function VehicleList({ vehicles, refreshData }) {
           style={{
             display: "flex",
             alignItems: "center",
-            background: "white",
-            padding: "8px 12px",
-            borderRadius: "8px",
-            border: "1px solid #ddd",
-            width: "100%",
-            maxWidth: "300px",
+            gap: "10px",
+            flexWrap: "wrap",
           }}
         >
-          <Search size={18} color="#94a3b8" style={{ marginRight: "8px" }} />
-          <input
-            type="text"
-            placeholder="Search Year, Make, Model, VIN..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+          <button
+            onClick={handleExportExcel}
             style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              background: "#10b981",
+              color: "white",
               border: "none",
-              outline: "none",
-              width: "100%",
+              padding: "8px 16px",
+              borderRadius: "8px",
+              cursor: "pointer",
               fontSize: "14px",
+              fontWeight: "600",
             }}
-          />
+          >
+            <Download size={16} /> Export Excel
+          </button>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              background: "white",
+              padding: "8px 12px",
+              borderRadius: "8px",
+              border: "1px solid #ddd",
+              width: "100%",
+              maxWidth: "300px",
+            }}
+          >
+            <Search size={18} color="#94a3b8" style={{ marginRight: "8px" }} />
+            <input
+              type="text"
+              placeholder="Search Year, Make, Model, VIN..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                border: "none",
+                outline: "none",
+                width: "100%",
+                fontSize: "14px",
+              }}
+            />
+          </div>
         </div>
       </div>
 
@@ -100,7 +153,6 @@ function VehicleList({ vehicles, refreshData }) {
               className="card"
               style={{ position: "relative" }}
             >
-              {/* Delete Button positioned at the top right of the card */}
               <button
                 onClick={() => handleDelete(vehicle._id)}
                 style={{
@@ -142,7 +194,6 @@ function VehicleList({ vehicles, refreshData }) {
                 </span>
               </div>
 
-              {/* Status Dropdown to easily change from Active to In Shop */}
               <div
                 style={{
                   display: "flex",
@@ -180,10 +231,31 @@ function VehicleList({ vehicles, refreshData }) {
                 </select>
               </div>
 
+              <button
+                onClick={() => setSelectedVehicle(vehicle)}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  marginBottom: "12px",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  color: "#475569",
+                  fontWeight: "600",
+                }}
+              >
+                <History size={16} /> View Repair History
+              </button>
+
               {vehicle.documents && vehicle.documents.length > 0 && (
                 <div
                   style={{
-                    marginTop: "15px",
+                    marginTop: "5px",
                     background: "#f8fafc",
                     padding: "10px",
                     borderRadius: "8px",
@@ -229,6 +301,13 @@ function VehicleList({ vehicles, refreshData }) {
           ))
         )}
       </div>
+
+      {selectedVehicle && (
+        <VehicleHistoryModal
+          vehicle={selectedVehicle}
+          onClose={() => setSelectedVehicle(null)}
+        />
+      )}
     </div>
   );
 }

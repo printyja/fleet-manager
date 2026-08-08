@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { CheckCircle, Clock } from "lucide-react";
+import { CheckCircle, Clock, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 
 function MechanicView() {
   const [tasks, setTasks] = useState([]);
@@ -21,7 +22,6 @@ function MechanicView() {
 
       if (response.ok) {
         const result = await response.json();
-        // Automatically updates the task in our local list to move it to the completed column
         setTasks(
           tasks.map((task) => (task._id === taskId ? result.data : task)),
         );
@@ -31,12 +31,56 @@ function MechanicView() {
     }
   };
 
+  // --- UPGRADED: Handle Exporting Logs to Excel (.xlsx) ---
+  const handleExportLogs = () => {
+    const excelData = tasks.map((t) => ({
+      "Vehicle ID": t.vehicleId,
+      "Job Description": t.description,
+      Status: t.status,
+      "Date Created": new Date(t.createdAt).toLocaleDateString(),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Maintenance_Logs");
+
+    XLSX.writeFile(workbook, "LJG_Maintenance_Logs.xlsx");
+  };
+
   const pendingTasks = tasks.filter((task) => task.status === "Pending");
   const completedTasks = tasks.filter((task) => task.status === "Completed");
 
   return (
     <div className="mechanic-section">
-      <h2 style={{ marginTop: 0 }}>Mechanic Task Board</h2>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "20px",
+        }}
+      >
+        <h2 style={{ margin: 0 }}>Mechanic Task Board</h2>
+
+        <button
+          onClick={handleExportLogs}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            background: "#10b981",
+            color: "white",
+            border: "none",
+            padding: "8px 16px",
+            borderRadius: "8px",
+            cursor: "pointer",
+            fontSize: "14px",
+            fontWeight: "600",
+          }}
+        >
+          <Download size={16} /> Export Excel
+        </button>
+      </div>
 
       <div className="task-columns">
         <div className="task-column pending">

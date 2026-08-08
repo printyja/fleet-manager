@@ -20,7 +20,11 @@ function VehicleList({ vehicles, refreshData }) {
 
   const filteredVehicles = vehicles.filter((vehicle) => {
     const searchLower = searchTerm.toLowerCase();
+    const vNum = vehicle.vehicleNumber
+      ? vehicle.vehicleNumber.toLowerCase()
+      : "";
     return (
+      vNum.includes(searchLower) ||
       vehicle.make.toLowerCase().includes(searchLower) ||
       vehicle.model.toLowerCase().includes(searchLower) ||
       vehicle.vin.toLowerCase().includes(searchLower) ||
@@ -52,10 +56,9 @@ function VehicleList({ vehicles, refreshData }) {
     }
   };
 
-  // --- UPGRADED: Handle Exporting Fleet to Excel (.xlsx) ---
   const handleExportExcel = () => {
-    // 1. Format the data for Excel
     const excelData = filteredVehicles.map((v) => ({
+      "Vehicle ID#": v.vehicleNumber || "N/A",
       Year: v.year,
       Make: v.make,
       Model: v.model,
@@ -64,12 +67,9 @@ function VehicleList({ vehicles, refreshData }) {
       "Saved Documents": v.documents ? v.documents.length : 0,
     }));
 
-    // 2. Create a worksheet and a workbook
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Fleet_Assets");
-
-    // 3. Trigger the download as an .xlsx file
     XLSX.writeFile(workbook, "LJG_Fleet_Export.xlsx");
   };
 
@@ -129,7 +129,7 @@ function VehicleList({ vehicles, refreshData }) {
             <Search size={18} color="#94a3b8" style={{ marginRight: "8px" }} />
             <input
               type="text"
-              placeholder="Search Year, Make, Model, VIN..."
+              placeholder="Search ID, Year, Make, VIN..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{
@@ -177,6 +177,9 @@ function VehicleList({ vehicles, refreshData }) {
                   paddingRight: "30px",
                 }}
               >
+                <span style={{ color: "#3b82f6", marginRight: "6px" }}>
+                  #{vehicle.vehicleNumber || "N/A"}
+                </span>
                 {vehicle.year} {vehicle.make} {vehicle.model}
               </h3>
 

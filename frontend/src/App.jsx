@@ -3,7 +3,7 @@ import Header from "./components/Header";
 import VehicleForm from "./components/VehicleForm";
 import VehicleList from "./components/VehicleList";
 import MechanicView from "./components/MechanicView";
-import AnalyticsWidget from "./components/AnalyticsWidget"; // Import the new widget
+import AnalyticsWidget from "./components/AnalyticsWidget";
 import "./App.css";
 
 function App() {
@@ -46,16 +46,15 @@ function App() {
 
       {activeTab === "admin" ? (
         <>
-          {/* Add the Analytics Widget here, passing it the vehicles data */}
           <AnalyticsWidget vehicles={vehicles} />
-
           <div className="layout-grid">
             <VehicleForm onVehicleAdded={handleVehicleAdded} />
             <VehicleList vehicles={vehicles} refreshData={fetchVehicles} />
           </div>
         </>
       ) : (
-        <MechanicView />
+        /* Passing vehicles array into MechanicView */
+        <MechanicView vehicles={vehicles} />
       )}
     </div>
   );

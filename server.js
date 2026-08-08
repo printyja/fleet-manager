@@ -25,7 +25,6 @@ mongoose
   .connect(mongoURI, { serverSelectionTimeoutMS: 5000 })
   .then(() => console.log("Successfully connected to MongoDB Cloud!"))
   .catch((error) => console.log("Error connecting to MongoDB:", error));
-
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "uploads/"),
   filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
@@ -35,6 +34,7 @@ const upload = multer({ storage });
 // 2. SCHEMAS & MODELS
 const vehicleSchema = new mongoose.Schema(
   {
+    vehicleNumber: { type: String, required: true }, // NEW FIELD
     year: { type: Number, required: true },
     make: { type: String, required: true },
     model: { type: String, required: true },
@@ -102,7 +102,6 @@ app.get("/api/vehicles", async (req, res) => {
   }
 });
 
-// --- NEW: UPDATE VEHICLE STATUS ---
 app.patch("/api/vehicles/:id", async (req, res) => {
   try {
     const updatedVehicle = await Vehicle.findByIdAndUpdate(
@@ -116,7 +115,6 @@ app.patch("/api/vehicles/:id", async (req, res) => {
   }
 });
 
-// --- NEW: DELETE VEHICLE ---
 app.delete("/api/vehicles/:id", async (req, res) => {
   try {
     await Vehicle.findByIdAndDelete(req.params.id);
@@ -184,6 +182,15 @@ app.patch("/api/tasks/:taskId", async (req, res) => {
     res.status(200).json({ data: updatedTask });
   } catch (error) {
     res.status(400).json({ error: error.message });
+  }
+});
+
+app.get("/api/vehicles/:vehicleId/tasks", async (req, res) => {
+  try {
+    const history = await Task.find({ vehicleId: req.params.vehicleId });
+    res.status(200).json(history);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

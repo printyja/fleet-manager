@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { CheckCircle, Clock, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 
-function MechanicView() {
+// Accept vehicles array as a prop
+function MechanicView({ vehicles }) {
   const [tasks, setTasks] = useState([]);
 
   useEffect(() => {
@@ -31,10 +32,19 @@ function MechanicView() {
     }
   };
 
-  // --- UPGRADED: Handle Exporting Logs to Excel (.xlsx) ---
+  // Helper function to get clean vehicle details for the task
+  const getVehicleDetails = (vehicleId) => {
+    const vehicle = vehicles.find((v) => v._id === vehicleId);
+    if (vehicle) {
+      return `Unit #${vehicle.vehicleNumber || "N/A"} - ${vehicle.year} ${vehicle.model}`;
+    }
+    // Fallback if the vehicle was deleted from the database
+    return `Unknown Vehicle (ID: ${vehicleId.slice(-6)})`;
+  };
+
   const handleExportLogs = () => {
     const excelData = tasks.map((t) => ({
-      "Vehicle ID": t.vehicleId,
+      Vehicle: getVehicleDetails(t.vehicleId),
       "Job Description": t.description,
       Status: t.status,
       "Date Created": new Date(t.createdAt).toLocaleDateString(),
@@ -100,8 +110,8 @@ function MechanicView() {
           ) : (
             pendingTasks.map((task) => (
               <div key={task._id} className="task-card">
-                <p>
-                  <strong>Vehicle ID:</strong> {task.vehicleId}
+                <p style={{ color: "#3b82f6", fontWeight: "600" }}>
+                  {getVehicleDetails(task.vehicleId)}
                 </p>
                 <p>
                   <strong>Job:</strong> {task.description}
@@ -134,8 +144,8 @@ function MechanicView() {
           ) : (
             completedTasks.map((task) => (
               <div key={task._id} className="task-card success">
-                <p>
-                  <strong>Vehicle ID:</strong> {task.vehicleId}
+                <p style={{ color: "#16a34a", fontWeight: "600" }}>
+                  {getVehicleDetails(task.vehicleId)}
                 </p>
                 <p>
                   <strong>Job:</strong> {task.description}

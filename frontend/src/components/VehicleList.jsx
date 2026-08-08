@@ -79,7 +79,7 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Fleet_Assets");
-    XLSX.writeFile(workbook, "JP_Fleet_Export.xlsx");
+    XLSX.writeFile(workbook, "Fleet_Export.xlsx");
   };
 
   const toggleVehicleQr = (vehicleId) => {
@@ -96,12 +96,14 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
           display: "grid",
 
           alignItems: "flex-start",
-          marginBottom: "20px",
+          marginBottom: "15px",
           flexWrap: "wrap",
           gap: "10px",
         }}
       >
-        <h2 style={{ margin: 0, color: "#3b82f6" }}>My Fleet</h2>
+        <h2 style={{ margin: 0, color: "#3b82f6", height: "30px", marginTop: "10px" }}>
+          My Fleet
+        </h2>
 
         <div
           style={{

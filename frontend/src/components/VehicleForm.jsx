@@ -49,7 +49,7 @@ function VehicleForm({ onVehicleAdded }) {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          padding: "30px",
+          padding: "10px",
         }}
       >
         <button
@@ -76,7 +76,7 @@ function VehicleForm({ onVehicleAdded }) {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "16px",
+          marginBottom: "10px",
         }}
       >
         <h2

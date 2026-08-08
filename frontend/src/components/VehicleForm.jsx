@@ -3,6 +3,8 @@ import { PlusCircle, X } from "lucide-react";
 
 function VehicleForm({ onVehicleAdded }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [formData, setFormData] = useState({
     vehicleNumber: "",
     year: "",
@@ -12,32 +14,52 @@ function VehicleForm({ onVehicleAdded }) {
   });
 
   const handleChange = (e) => {
+    setSaveError("");
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSaveError("");
+    setIsSaving(true);
+
+    const payload = {
+      ...formData,
+      year: Number(formData.year),
+    };
+
     try {
       const response = await fetch("/api/vehicles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        onVehicleAdded(result.data);
-        setFormData({
-          vehicleNumber: "",
-          year: "",
-          make: "",
-          model: "",
-          vin: "",
-        });
-        setIsOpen(false); // Close form on success
+      let result = {};
+      try {
+        result = await response.json();
+      } catch {
+        result = {};
       }
+
+      if (!response.ok) {
+        throw new Error(result.error || "Could not save asset.");
+      }
+
+      onVehicleAdded(result.data || payload);
+      setFormData({
+        vehicleNumber: "",
+        year: "",
+        make: "",
+        model: "",
+        vin: "",
+      });
+      setIsOpen(false);
     } catch (error) {
       console.error("Error saving vehicle:", error);
+      setSaveError(error.message || "Could not save asset.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -53,6 +75,7 @@ function VehicleForm({ onVehicleAdded }) {
         }}
       >
         <button
+          type="button"
           onClick={() => setIsOpen(true)}
           className="submit-btn"
           style={{
@@ -91,6 +114,7 @@ function VehicleForm({ onVehicleAdded }) {
           <PlusCircle size={20} color="#1769aa" /> Add New Asset
         </h2>
         <button
+          type="button"
           onClick={() => setIsOpen(false)}
           style={{ background: "none", border: "none", cursor: "pointer" }}
         >
@@ -143,6 +167,7 @@ function VehicleForm({ onVehicleAdded }) {
         <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
           <button
             type="button"
+            disabled={isSaving}
             onClick={() => setIsOpen(false)}
             style={{
               flex: 1,
@@ -157,10 +182,21 @@ function VehicleForm({ onVehicleAdded }) {
           >
             Cancel
           </button>
-          <button type="submit" className="submit-btn" style={{ flex: 2 }}>
-            Save Asset
+          <button
+            type="submit"
+            className="submit-btn"
+            style={{ flex: 2 }}
+            disabled={isSaving}
+          >
+            {isSaving ? "Saving..." : "Save Asset"}
           </button>
         </div>
+
+        {saveError ? (
+          <p style={{ color: "#b91c1c", marginTop: "10px", marginBottom: 0 }}>
+            {saveError}
+          </p>
+        ) : null}
       </form>
     </div>
   );

@@ -112,6 +112,40 @@ if (!mongoURI) {
     .then(() => console.log("Successfully connected to MongoDB Cloud!"))
     .catch((error) => console.log("Error connecting to MongoDB:", error));
 }
+
+let dbConnectionPromise = null;
+const ensureDatabaseConnection = async () => {
+  if (!mongoURI) {
+    throw new Error("Database is not configured on this deployment.");
+  }
+
+  if (mongoose.connection.readyState === 1) {
+    return;
+  }
+
+  if (!dbConnectionPromise) {
+    dbConnectionPromise = mongoose
+      .connect(mongoURI, { serverSelectionTimeoutMS: 5000 })
+      .catch((error) => {
+        dbConnectionPromise = null;
+        throw error;
+      });
+  }
+
+  await dbConnectionPromise;
+};
+
+const requireDatabase = async (req, res, next) => {
+  try {
+    await ensureDatabaseConnection();
+    next();
+  } catch (error) {
+    res.status(503).json({
+      error: "Database temporarily unavailable. Please try again.",
+      detail: error.message,
+    });
+  }
+};
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDirectory),
   filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
@@ -256,32 +290,42 @@ if (process.env.NODE_ENV !== "test") {
 }
 
 // 3. VEHICLE ROUTES
-app.post("/api/vehicles", requireRole("admin"), async (req, res) => {
-  try {
-    const normalizedVehicleNumber =
-      req.body.vehicleNumber ?? req.body.vehicleId ?? req.body.vehicleID;
+app.post(
+  "/api/vehicles",
+  requireRole("admin"),
+  requireDatabase,
+  async (req, res) => {
+    try {
+      const normalizedVehicleNumber =
+        req.body.vehicleNumber ?? req.body.vehicleId ?? req.body.vehicleID;
 
-    const newVehicle = new Vehicle({
-      ...req.body,
-      vehicleNumber: normalizedVehicleNumber,
-    });
-    const savedVehicle = await newVehicle.save();
-    res
-      .status(201)
-      .json({ message: "Vehicle added successfully!", data: savedVehicle });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
+      const newVehicle = new Vehicle({
+        ...req.body,
+        vehicleNumber: normalizedVehicleNumber,
+      });
+      const savedVehicle = await newVehicle.save();
+      res
+        .status(201)
+        .json({ message: "Vehicle added successfully!", data: savedVehicle });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+);
 
-app.get("/api/vehicles", requireRole("admin", "mechanic"), async (req, res) => {
-  try {
-    const vehicles = await Vehicle.find();
-    res.status(200).json(vehicles);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+app.get(
+  "/api/vehicles",
+  requireRole("admin", "mechanic"),
+  requireDatabase,
+  async (req, res) => {
+    try {
+      const vehicles = await Vehicle.find();
+      res.status(200).json(vehicles);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
 
 app.get(
   "/api/vehicles/:id",

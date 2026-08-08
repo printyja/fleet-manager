@@ -61,7 +61,7 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
 });
 const upload = multer({ storage });
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "FleetAdmin2026";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 const requireRole =
   (...allowedRoles) =>
@@ -90,7 +90,17 @@ app.post("/api/auth/login", (req, res) => {
   }
 
   if (role === "admin") {
-    if (password !== ADMIN_PASSWORD) {
+    const submittedPassword = String(password ?? "").trim();
+    const configuredPassword = String(ADMIN_PASSWORD ?? "").trim();
+
+    // In production, fail closed if ADMIN_PASSWORD is not configured.
+    if (!configuredPassword) {
+      return res
+        .status(500)
+        .json({ error: "Admin login is not configured on this deployment." });
+    }
+
+    if (submittedPassword !== configuredPassword) {
       return res.status(401).json({ error: "Incorrect admin password." });
     }
 

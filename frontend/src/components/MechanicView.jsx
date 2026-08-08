@@ -62,31 +62,16 @@ function MechanicView({ vehicles }) {
 
   return (
     <div className="mechanic-section">
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "20px",
-        }}
-      >
-        <h2 style={{ margin: 0 }}>Mechanic Task Board</h2>
+      <div className="mechanic-toolbar">
+        <div>
+          <h2 className="mechanic-title">Mechanic Task Board</h2>
+          
+        </div>
 
         <button
+          type="button"
           onClick={handleExportLogs}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-            background: "#10b981",
-            color: "white",
-            border: "none",
-            padding: "8px 16px",
-            borderRadius: "8px",
-            cursor: "pointer",
-            fontSize: "14px",
-            fontWeight: "600",
-          }}
+          className="mechanic-export-btn"
         >
           <Download size={16} /> Export Excel
         </button>
@@ -94,29 +79,26 @@ function MechanicView({ vehicles }) {
 
       <div className="task-columns">
         <div className="task-column pending">
-          <h3
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              marginTop: 0,
-            }}
-          >
-            <Clock size={20} color="#eab308" /> Pending Jobs (
-            {pendingTasks.length})
+          <h3 className="task-column-title">
+            <Clock size={20} color="#d97706" /> Pending Jobs
+            <span className="task-count-badge">{pendingTasks.length}</span>
           </h3>
           {pendingTasks.length === 0 ? (
-            <p>No pending jobs!</p>
+            <p className="task-empty-state">No pending jobs.</p>
           ) : (
             pendingTasks.map((task) => (
               <div key={task._id} className="task-card">
-                <p style={{ color: "#3b82f6", fontWeight: "600" }}>
+                <p className="task-vehicle-label">
                   {getVehicleDetails(task.vehicleId)}
                 </p>
-                <p>
+                <p className="task-description">
                   <strong>Job:</strong> {task.description}
                 </p>
+                <p className="task-date-label">
+                  Created: {new Date(task.createdAt).toLocaleDateString()}
+                </p>
                 <button
+                  type="button"
                   onClick={() => completeTask(task._id)}
                   className="complete-btn"
                 >
@@ -128,37 +110,28 @@ function MechanicView({ vehicles }) {
         </div>
 
         <div className="task-column completed">
-          <h3
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              marginTop: 0,
-            }}
-          >
-            <CheckCircle size={20} color="#22c55e" /> Completed (
-            {completedTasks.length})
+          <h3 className="task-column-title">
+            <CheckCircle size={20} color="#16a34a" /> Completed
+            <span className="task-count-badge success">
+              {completedTasks.length}
+            </span>
           </h3>
           {completedTasks.length === 0 ? (
-            <p>No completed jobs yet.</p>
+            <p className="task-empty-state">No completed jobs yet.</p>
           ) : (
             completedTasks.map((task) => (
               <div key={task._id} className="task-card success">
-                <p style={{ color: "#16a34a", fontWeight: "600" }}>
+                <p className="task-vehicle-label success">
                   {getVehicleDetails(task.vehicleId)}
                 </p>
-                <p>
+                <p className="task-description">
                   <strong>Job:</strong> {task.description}
                 </p>
-                <p
-                  style={{
-                    color: "green",
-                    fontSize: "14px",
-                    fontWeight: "bold",
-                  }}
-                >
-                  ✔ Done
+                <p className="task-date-label">
+                  Completed View:{" "}
+                  {new Date(task.updatedAt).toLocaleDateString()}
                 </p>
+                <p className="task-done-label">Done</p>
               </div>
             ))
           )}

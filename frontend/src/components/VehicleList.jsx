@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   Activity,
+  ShieldCheck,
   Hash,
   ExternalLink,
   Search,
@@ -11,12 +12,12 @@ import {
 import * as XLSX from "xlsx";
 import TaskForm from "./TaskForm";
 import VehicleQRCode from "./VehicleQRCode";
-import DocumentUpload from "./DocumentUpload";
 import VehicleHistoryModal from "./VehicleHistoryModal";
 
-function VehicleList({ vehicles, refreshData }) {
+function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [visibleQrByVehicle, setVisibleQrByVehicle] = useState({});
 
   const getDisplayVehicleId = (vehicle) =>
     vehicle.vehicleNumber || vehicle.vehicleId || vehicle.vehicleID || "N/A";
@@ -81,16 +82,23 @@ function VehicleList({ vehicles, refreshData }) {
     XLSX.writeFile(workbook, "LJG_Fleet_Export.xlsx");
   };
 
+  const toggleVehicleQr = (vehicleId) => {
+    setVisibleQrByVehicle((prev) => ({
+      ...prev,
+      [vehicleId]: !prev[vehicleId],
+    }));
+  };
+
   return (
     <div className="fleet-section">
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
+          display: "grid",
+
+          alignItems: "flex-start",
           marginBottom: "20px",
           flexWrap: "wrap",
-          gap: "15px",
+          gap: "10px",
         }}
       >
         <h2 style={{ margin: 0 }}>My Fleet</h2>
@@ -98,40 +106,22 @@ function VehicleList({ vehicles, refreshData }) {
         <div
           style={{
             display: "flex",
+            justifyContent: "space-between",
             alignItems: "center",
             gap: "10px",
             flexWrap: "wrap",
           }}
         >
-          <button
-            onClick={handleExportExcel}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              background: "#10b981",
-              color: "white",
-              border: "none",
-              padding: "8px 16px",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontSize: "14px",
-              fontWeight: "600",
-            }}
-          >
-            <Download size={16} /> Export Excel
-          </button>
-
           <div
             style={{
               display: "flex",
               alignItems: "center",
               background: "white",
-              padding: "8px 12px",
+              padding: "7px 12px",
               borderRadius: "8px",
               border: "1px solid #ddd",
               width: "100%",
-              maxWidth: "300px",
+              maxWidth: "400px",
             }}
           >
             <Search size={18} color="#94a3b8" style={{ marginRight: "8px" }} />
@@ -148,6 +138,24 @@ function VehicleList({ vehicles, refreshData }) {
               }}
             />
           </div>
+          <button
+            onClick={handleExportExcel}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+              background: "#0f766e",
+              color: "white",
+              border: "none",
+              padding: "8px 16px",
+              borderRadius: "8px",
+              cursor: "pointer",
+              fontSize: "14px",
+              fontWeight: "600",
+            }}
+          >
+            <Download size={16} /> Export Excel
+          </button>
         </div>
       </div>
 
@@ -263,6 +271,52 @@ function VehicleList({ vehicles, refreshData }) {
                 <History size={16} /> View Repair History
               </button>
 
+              <button
+                type="button"
+                onClick={() => onOpenCompliance(vehicle)}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  marginBottom: "12px",
+                  background: "#ecfeff",
+                  border: "1px solid #bae6fd",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  color: "#0c4a6e",
+                  fontWeight: "600",
+                }}
+              >
+                <ShieldCheck size={16} /> Compliance
+              </button>
+
+              <button
+                type="button"
+                onClick={() => toggleVehicleQr(vehicle._id)}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  marginBottom: "12px",
+                  background: "#eff6ff",
+                  border: "1px solid #bfdbfe",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  color: "#1d4ed8",
+                  fontWeight: "600",
+                }}
+              >
+                {visibleQrByVehicle[vehicle._id]
+                  ? "Hide QR Code"
+                  : "Show QR Code"}
+              </button>
+
               {vehicle.documents && vehicle.documents.length > 0 && (
                 <div
                   style={{
@@ -302,11 +356,9 @@ function VehicleList({ vehicles, refreshData }) {
                 </div>
               )}
 
-              <DocumentUpload
-                vehicleId={vehicle._id}
-                onUploadSuccess={refreshData}
-              />
-              <VehicleQRCode vehicleId={vehicle._id} vin={vehicle.vin} />
+              {visibleQrByVehicle[vehicle._id] && (
+                <VehicleQRCode vehicleId={vehicle._id} vin={vehicle.vin} />
+              )}
               <TaskForm vehicleId={vehicle._id} />
             </div>
           ))

@@ -85,9 +85,10 @@ function VehicleForm({ onVehicleAdded }) {
             display: "flex",
             alignItems: "center",
             gap: "8px",
+            color: "#1769aa",
           }}
         >
-          <PlusCircle size={20} color="#0f172a" /> Add New Asset
+          <PlusCircle size={20} color="#1769aa" /> Add New Asset
         </h2>
         <button
           onClick={() => setIsOpen(false)}

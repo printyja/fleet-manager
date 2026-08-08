@@ -18,11 +18,12 @@ function VehicleList({ vehicles, refreshData }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState(null);
 
+  const getDisplayVehicleId = (vehicle) =>
+    vehicle.vehicleNumber || vehicle.vehicleId || vehicle.vehicleID || "N/A";
+
   const filteredVehicles = vehicles.filter((vehicle) => {
     const searchLower = searchTerm.toLowerCase();
-    const vNum = vehicle.vehicleNumber
-      ? vehicle.vehicleNumber.toLowerCase()
-      : "";
+    const vNum = getDisplayVehicleId(vehicle).toLowerCase();
     return (
       vNum.includes(searchLower) ||
       vehicle.make.toLowerCase().includes(searchLower) ||
@@ -37,9 +38,16 @@ function VehicleList({ vehicles, refreshData }) {
       return;
     try {
       const response = await fetch(`/api/vehicles/${id}`, { method: "DELETE" });
-      if (response.ok) refreshData();
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Delete request failed");
+      }
+      refreshData();
     } catch (error) {
       console.error("Error deleting vehicle:", error);
+      window.alert(
+        "Could not delete vehicle. Please make sure the API server is running and try again.",
+      );
     }
   };
 
@@ -58,7 +66,7 @@ function VehicleList({ vehicles, refreshData }) {
 
   const handleExportExcel = () => {
     const excelData = filteredVehicles.map((v) => ({
-      "Vehicle ID#": v.vehicleNumber || "N/A",
+      "Vehicle ID#": getDisplayVehicleId(v),
       Year: v.year,
       Make: v.make,
       Model: v.model,
@@ -178,7 +186,7 @@ function VehicleList({ vehicles, refreshData }) {
                 }}
               >
                 <span style={{ color: "#3b82f6", marginRight: "6px" }}>
-                  #{vehicle.vehicleNumber || "N/A"}
+                  #{getDisplayVehicleId(vehicle)}
                 </span>
                 {vehicle.year} {vehicle.make} {vehicle.model}
               </h3>

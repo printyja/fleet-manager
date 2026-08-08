@@ -83,7 +83,13 @@ cron.schedule("0 0 * * *", async () => {
 // 3. VEHICLE ROUTES
 app.post("/api/vehicles", async (req, res) => {
   try {
-    const newVehicle = new Vehicle(req.body);
+    const normalizedVehicleNumber =
+      req.body.vehicleNumber ?? req.body.vehicleId ?? req.body.vehicleID;
+
+    const newVehicle = new Vehicle({
+      ...req.body,
+      vehicleNumber: normalizedVehicleNumber,
+    });
     const savedVehicle = await newVehicle.save();
     res
       .status(201)
@@ -187,7 +193,9 @@ app.patch("/api/tasks/:taskId", async (req, res) => {
 
 app.get("/api/vehicles/:vehicleId/tasks", async (req, res) => {
   try {
-    const history = await Task.find({ vehicleId: req.params.vehicleId });
+    const history = await Task.find({ vehicleId: req.params.vehicleId }).sort({
+      createdAt: -1,
+    });
     res.status(200).json(history);
   } catch (error) {
     res.status(500).json({ error: error.message });

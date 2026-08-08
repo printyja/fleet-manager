@@ -47,8 +47,9 @@ function App() {
       {activeTab === "admin" ? (
         <>
           <AnalyticsWidget vehicles={vehicles} />
-          <div className="layout-grid">
             <VehicleForm onVehicleAdded={handleVehicleAdded} />
+
+          <div className="layout-grid">
             <VehicleList vehicles={vehicles} refreshData={fetchVehicles} />
           </div>
         </>

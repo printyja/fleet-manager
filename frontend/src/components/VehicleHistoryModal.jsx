@@ -11,7 +11,10 @@ function VehicleHistoryModal({ vehicle, onClose }) {
     fetch(`/api/vehicles/${vehicle._id}/tasks`)
       .then((res) => res.json())
       .then((data) => {
-        setHistory(data);
+        const sortedHistory = [...data].sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+        );
+        setHistory(sortedHistory);
         setLoading(false);
       })
       .catch((err) => {

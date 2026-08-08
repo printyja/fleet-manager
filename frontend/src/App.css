@@ -5,8 +5,14 @@ body {
     -apple-system,
     sans-serif;
   margin: 0;
+  padding: 0;
+}
+
+.dashboard {
+  width: 100%;
+  min-height: 100vh;
   padding: 20px;
-  color: #333;
+  box-sizing: border-box;
 }
 
 .header {
@@ -49,9 +55,10 @@ body {
 /* Layout for Admin Dashboard */
 .layout-grid {
   display: grid;
-  grid-template-columns: 350px 1fr;
-  gap: 30px;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 50px;
   align-items: start;
+  margin-bottom: 50px;
 }
 
 .form-section {
@@ -100,8 +107,20 @@ body {
 
 .fleet-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 20px;
+}
+
+@media (max-width: 1200px) {
+  .fleet-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .fleet-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .card {

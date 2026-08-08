@@ -3,13 +3,13 @@ import Header from "./components/Header";
 import VehicleForm from "./components/VehicleForm";
 import VehicleList from "./components/VehicleList";
 import MechanicView from "./components/MechanicView";
+import AnalyticsWidget from "./components/AnalyticsWidget"; // Import the new widget
 import "./App.css";
 
 function App() {
   const [vehicles, setVehicles] = useState([]);
   const [activeTab, setActiveTab] = useState("admin");
 
-  // Created a reusable function to fetch data so we can call it after uploads
   const fetchVehicles = () => {
     fetch("/api/vehicles")
       .then((res) => res.json())
@@ -45,11 +45,15 @@ function App() {
       </div>
 
       {activeTab === "admin" ? (
-        <div className="layout-grid">
-          <VehicleForm onVehicleAdded={handleVehicleAdded} />
-          {/* Pass the refresh function down to the list */}
-          <VehicleList vehicles={vehicles} refreshData={fetchVehicles} />
-        </div>
+        <>
+          {/* Add the Analytics Widget here, passing it the vehicles data */}
+          <AnalyticsWidget vehicles={vehicles} />
+
+          <div className="layout-grid">
+            <VehicleForm onVehicleAdded={handleVehicleAdded} />
+            <VehicleList vehicles={vehicles} refreshData={fetchVehicles} />
+          </div>
+        </>
       ) : (
         <MechanicView />
       )}

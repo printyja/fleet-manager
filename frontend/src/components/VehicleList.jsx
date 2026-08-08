@@ -1,14 +1,12 @@
 import { useState } from "react";
-import { Activity, Hash, ExternalLink, Search } from "lucide-react";
+import { Activity, Hash, ExternalLink, Search, Trash2 } from "lucide-react";
 import TaskForm from "./TaskForm";
 import VehicleQRCode from "./VehicleQRCode";
 import DocumentUpload from "./DocumentUpload";
 
 function VehicleList({ vehicles, refreshData }) {
-  // Add state to track the user's search input
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Filter the vehicles array before rendering it
   const filteredVehicles = vehicles.filter((vehicle) => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -19,9 +17,39 @@ function VehicleList({ vehicles, refreshData }) {
     );
   });
 
+  // --- Handle Deleting a Vehicle ---
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this vehicle?"))
+      return;
+
+    try {
+      const response = await fetch(`/api/vehicles/${id}`, { method: "DELETE" });
+      if (response.ok) {
+        refreshData(); // Refresh the grid to remove the deleted truck
+      }
+    } catch (error) {
+      console.error("Error deleting vehicle:", error);
+    }
+  };
+
+  // --- Handle Status Change ---
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      const response = await fetch(`/api/vehicles/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (response.ok) {
+        refreshData(); // Refresh to show the updated color and status
+      }
+    } catch (error) {
+      console.error("Error updating status:", error);
+    }
+  };
+
   return (
     <div className="fleet-section">
-      {/* Visual Search Bar next to the title */}
       <div
         style={{
           display: "flex",
@@ -63,17 +91,38 @@ function VehicleList({ vehicles, refreshData }) {
       </div>
 
       <div className="fleet-grid">
-        {/* Map over 'filteredVehicles' instead of 'vehicles' */}
         {filteredVehicles.length === 0 ? (
           <p>No vehicles found matching "{searchTerm}".</p>
         ) : (
           filteredVehicles.map((vehicle) => (
-            <div key={vehicle._id} className="card">
+            <div
+              key={vehicle._id}
+              className="card"
+              style={{ position: "relative" }}
+            >
+              {/* Delete Button positioned at the top right of the card */}
+              <button
+                onClick={() => handleDelete(vehicle._id)}
+                style={{
+                  position: "absolute",
+                  top: "20px",
+                  right: "20px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#ef4444",
+                }}
+                title="Delete Vehicle"
+              >
+                <Trash2 size={20} />
+              </button>
+
               <h3
                 style={{
                   borderBottom: "1px solid #eee",
                   paddingBottom: "10px",
                   marginTop: 0,
+                  paddingRight: "30px",
                 }}
               >
                 {vehicle.year} {vehicle.make} {vehicle.model}
@@ -84,7 +133,7 @@ function VehicleList({ vehicles, refreshData }) {
                   display: "flex",
                   alignItems: "center",
                   gap: "8px",
-                  marginBottom: "8px",
+                  marginBottom: "12px",
                 }}
               >
                 <Hash size={18} color="#666" />
@@ -93,16 +142,42 @@ function VehicleList({ vehicles, refreshData }) {
                 </span>
               </div>
 
+              {/* Status Dropdown to easily change from Active to In Shop */}
               <div
-                style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  marginBottom: "12px",
+                }}
               >
                 <Activity
                   size={18}
-                  color={vehicle.status === "Active" ? "green" : "orange"}
+                  color={
+                    vehicle.status === "Active"
+                      ? "green"
+                      : vehicle.status === "In Shop"
+                        ? "orange"
+                        : "red"
+                  }
                 />
-                <span>
-                  <strong>Status:</strong> {vehicle.status}
-                </span>
+                <strong>Status:</strong>
+                <select
+                  value={vehicle.status}
+                  onChange={(e) =>
+                    handleStatusChange(vehicle._id, e.target.value)
+                  }
+                  style={{
+                    padding: "4px 8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ddd",
+                    fontSize: "13px",
+                  }}
+                >
+                  <option value="Active">Active</option>
+                  <option value="In Shop">In Shop</option>
+                  <option value="Out of Service">Out of Service</option>
+                </select>
               </div>
 
               {vehicle.documents && vehicle.documents.length > 0 && (

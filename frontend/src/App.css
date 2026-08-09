@@ -54,9 +54,10 @@ body {
 }
 
 .header {
+  --header-pad: clamp(14px, 2.2vw, 24px);
   background: linear-gradient(120deg, #0f2237 0%, #153e65 60%, #1d5f8f 100%);
   color: #fff;
-  padding: 24px;
+  padding: var(--header-pad);
   border-radius: var(--radius-lg);
   margin-bottom: 20px;
   box-shadow: var(--shadow-md);
@@ -67,6 +68,13 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.header-logo {
+  height: calc(var(--header-pad) * 2.1);
+  width: auto;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .header-title {

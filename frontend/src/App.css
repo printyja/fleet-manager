@@ -785,3 +785,14 @@ input:focus {
     grid-template-columns: repeat(1, minmax(0, 1fr));
   }
 }
+
+@media (max-width: 430px), (max-device-width: 430px) {
+  .compliance-section .compliance-grid,
+  .compliance-section .compliance-upload-form {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .compliance-section .compliance-card {
+    min-width: 0;
+  }
+}

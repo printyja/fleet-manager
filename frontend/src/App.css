@@ -770,3 +770,18 @@ input:focus {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+@media (max-width: 400px) {
+  .compliance-grid,
+  .compliance-upload-form {
+    grid-template-columns: 1fr;
+  }
+
+  .task-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .fleet-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+}

@@ -18,9 +18,19 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [visibleQrByVehicle, setVisibleQrByVehicle] = useState({});
+  const [editingVehicleId, setEditingVehicleId] = useState(null);
+  const [editDraft, setEditDraft] = useState(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState("");
 
   const getDisplayVehicleId = (vehicle) =>
     vehicle.vehicleNumber || vehicle.vehicleId || vehicle.vehicleID || "N/A";
+
+  const getStatusColor = (status) => {
+    if (status === "Active") return "green";
+    if (status === "In Shop") return "orange";
+    return "red";
+  };
 
   const safeVehicles = Array.isArray(vehicles) ? vehicles : [];
 
@@ -69,6 +79,102 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
       if (response.ok) refreshData();
     } catch (error) {
       console.error("Error updating status:", error);
+    }
+  };
+
+  const startEditing = (vehicle) => {
+    setEditError("");
+    setEditingVehicleId(vehicle._id);
+    setEditDraft({
+      vehicleNumber: getDisplayVehicleId(vehicle),
+      year: String(vehicle.year ?? ""),
+      make: String(vehicle.make ?? ""),
+      model: String(vehicle.model ?? ""),
+      vin: String(vehicle.vin ?? ""),
+      status: String(vehicle.status ?? "Active"),
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingVehicleId(null);
+    setEditDraft(null);
+    setEditError("");
+    setIsSavingEdit(false);
+  };
+
+  const handleEditDraftChange = (field, value) => {
+    setEditError("");
+    setEditDraft((prev) => {
+      if (!prev) {
+        return { [field]: value };
+      }
+
+      return {
+        ...prev,
+        [field]: value,
+      };
+    });
+  };
+
+  const saveVehicleEdits = async (vehicleId) => {
+    if (!editDraft) return;
+
+    const yearValue = Number(editDraft.year);
+    if (!Number.isFinite(yearValue) || yearValue <= 0) {
+      setEditError("Please enter a valid year.");
+      return;
+    }
+
+    const payload = {
+      vehicleNumber: String(editDraft.vehicleNumber || "").trim(),
+      year: yearValue,
+      make: String(editDraft.make || "").trim(),
+      model: String(editDraft.model || "").trim(),
+      vin: String(editDraft.vin || "").trim(),
+      status: String(editDraft.status || "Active"),
+    };
+
+    if (
+      !payload.vehicleNumber ||
+      !payload.make ||
+      !payload.model ||
+      !payload.vin
+    ) {
+      setEditError("Vehicle ID, make, model, and VIN are required.");
+      return;
+    }
+
+    setIsSavingEdit(true);
+    setEditError("");
+
+    try {
+      const response = await fetch(`/api/vehicles/${vehicleId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      let result = {};
+      try {
+        result = await response.json();
+      } catch {
+        result = {};
+      }
+
+      if (!response.ok) {
+        const detailMessage = result.detail ? ` ${result.detail}` : "";
+        throw new Error(
+          `${result.error || "Could not update vehicle."}${detailMessage}`,
+        );
+      }
+
+      await refreshData();
+      cancelEditing();
+    } catch (error) {
+      console.error("Error updating vehicle:", error);
+      setEditError(error.message || "Could not update vehicle.");
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -155,6 +261,7 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
             />
           </div>
           <button
+            type="button"
             onClick={handleExportExcel}
             style={{
               display: "flex",
@@ -185,7 +292,121 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
               className="card"
               style={{ position: "relative" }}
             >
+              {editingVehicleId === vehicle._id && (
+                <div
+                  style={{
+                    marginBottom: "12px",
+                    padding: "10px",
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    display: "grid",
+                    gap: "8px",
+                  }}
+                >
+                  <input
+                    type="text"
+                    value={editDraft?.vehicleNumber ?? ""}
+                    onChange={(e) =>
+                      handleEditDraftChange("vehicleNumber", e.target.value)
+                    }
+                    placeholder="Vehicle ID"
+                  />
+                  <input
+                    type="number"
+                    value={editDraft?.year ?? ""}
+                    onChange={(e) =>
+                      handleEditDraftChange("year", e.target.value)
+                    }
+                    placeholder="Year"
+                  />
+                  <input
+                    type="text"
+                    value={editDraft?.make ?? ""}
+                    onChange={(e) =>
+                      handleEditDraftChange("make", e.target.value)
+                    }
+                    placeholder="Make"
+                  />
+                  <input
+                    type="text"
+                    value={editDraft?.model ?? ""}
+                    onChange={(e) =>
+                      handleEditDraftChange("model", e.target.value)
+                    }
+                    placeholder="Model"
+                  />
+                  <input
+                    type="text"
+                    value={editDraft?.vin ?? ""}
+                    onChange={(e) =>
+                      handleEditDraftChange("vin", e.target.value)
+                    }
+                    placeholder="VIN"
+                  />
+                  <select
+                    value={editDraft?.status ?? "Active"}
+                    onChange={(e) =>
+                      handleEditDraftChange("status", e.target.value)
+                    }
+                  >
+                    <option value="Active">Active</option>
+                    <option value="In Shop">In Shop</option>
+                    <option value="Out of Service">Out of Service</option>
+                  </select>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      type="button"
+                      onClick={() => saveVehicleEdits(vehicle._id)}
+                      disabled={isSavingEdit}
+                      style={{
+                        flex: 1,
+                        padding: "8px 10px",
+                        background: "#0f766e",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                        fontWeight: "600",
+                      }}
+                    >
+                      {isSavingEdit ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEditing}
+                      disabled={isSavingEdit}
+                      style={{
+                        flex: 1,
+                        padding: "8px 10px",
+                        background: "#e2e8f0",
+                        color: "#0f172a",
+                        border: "none",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                        fontWeight: "600",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  {editError ? (
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: "13px",
+                        color: "#b91c1c",
+                        fontWeight: "600",
+                      }}
+                    >
+                      {editError}
+                    </p>
+                  ) : null}
+                </div>
+              )}
+
               <button
+                type="button"
                 onClick={() => handleDelete(vehicle._id)}
                 style={{
                   position: "absolute",
@@ -199,6 +420,33 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
                 title="Delete Vehicle"
               >
                 <Trash2 size={20} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  editingVehicleId === vehicle._id
+                    ? cancelEditing()
+                    : startEditing(vehicle)
+                }
+                style={{
+                  position: "absolute",
+                  top: "20px",
+                  right: "56px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#2563eb",
+                  fontSize: "13px",
+                  fontWeight: "700",
+                }}
+                title={
+                  editingVehicleId === vehicle._id
+                    ? "Cancel editing"
+                    : "Edit vehicle"
+                }
+              >
+                {editingVehicleId === vehicle._id ? "Close" : "Edit"}
               </button>
 
               <h3
@@ -237,16 +485,7 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
                   marginBottom: "12px",
                 }}
               >
-                <Activity
-                  size={18}
-                  color={
-                    vehicle.status === "Active"
-                      ? "green"
-                      : vehicle.status === "In Shop"
-                        ? "orange"
-                        : "red"
-                  }
-                />
+                <Activity size={18} color={getStatusColor(vehicle.status)} />
                 <strong>Status:</strong>
                 <select
                   value={vehicle.status}
@@ -267,6 +506,7 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
               </div>
 
               <button
+                type="button"
                 onClick={() => setSelectedVehicle(vehicle)}
                 style={{
                   width: "100%",
@@ -351,7 +591,10 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
                     }}
                   >
                     {vehicle.documents.map((doc, index) => (
-                      <li key={index} style={{ marginBottom: "4px" }}>
+                      <li
+                        key={doc._id || `${doc.fileUrl}-${doc.title}-${index}`}
+                        style={{ marginBottom: "4px" }}
+                      >
                         <a
                           href={`http://localhost:3000${doc.fileUrl}`}
                           target="_blank"

@@ -382,18 +382,73 @@ app.get(
   },
 );
 
-app.patch("/api/vehicles/:id", requireRole("admin"), async (req, res) => {
-  try {
-    const updatedVehicle = await Vehicle.findByIdAndUpdate(
-      req.params.id,
-      { status: req.body.status },
-      { new: true },
-    );
-    res.status(200).json({ message: "Vehicle updated", data: updatedVehicle });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
+app.patch(
+  "/api/vehicles/:id",
+  requireRole("admin"),
+  requireDatabase,
+  async (req, res) => {
+    try {
+      const body = req.body || {};
+      const hasOwn = (field) => Object.hasOwn(body, field);
+      const updates = {};
+
+      const hasVehicleNumber =
+        hasOwn("vehicleNumber") || hasOwn("vehicleId") || hasOwn("vehicleID");
+
+      if (hasVehicleNumber) {
+        const normalizedVehicleNumber =
+          body.vehicleNumber ?? body.vehicleId ?? body.vehicleID;
+        updates.vehicleNumber = String(normalizedVehicleNumber ?? "").trim();
+      }
+
+      if (hasOwn("year")) {
+        const parsedYear = Number(body.year);
+        if (!Number.isFinite(parsedYear) || parsedYear <= 0) {
+          return res
+            .status(400)
+            .json({ error: "Year must be a valid number." });
+        }
+        updates.year = parsedYear;
+      }
+
+      if (hasOwn("make")) {
+        updates.make = String(body.make ?? "").trim();
+      }
+
+      if (hasOwn("model")) {
+        updates.model = String(body.model ?? "").trim();
+      }
+
+      if (hasOwn("vin")) {
+        updates.vin = String(body.vin ?? "").trim();
+      }
+
+      if (hasOwn("status")) {
+        updates.status = body.status;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: "No update fields provided." });
+      }
+
+      const updatedVehicle = await Vehicle.findByIdAndUpdate(
+        req.params.id,
+        updates,
+        { new: true, runValidators: true },
+      );
+
+      if (!updatedVehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
+
+      res
+        .status(200)
+        .json({ message: "Vehicle updated", data: updatedVehicle });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+);
 
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });

@@ -6,7 +6,14 @@ import MechanicView from "./components/MechanicView";
 import AnalyticsWidget from "./components/AnalyticsWidget";
 import VehicleComplianceView from "./components/VehicleComplianceView";
 import Login from "./components/Login";
+import VehicleScanView from "./components/VehicleScanView";
 import "./App.css";
+
+// Vehicle QR codes link to /vehicle/<id>.
+const getScannedVehicleId = () => {
+  const match = window.location.pathname.match(/^\/vehicle\/([^/]+)\/?$/);
+  return match ? decodeURIComponent(match[1]) : null;
+};
 
 function App() {
   const [vehicles, setVehicles] = useState([]);
@@ -16,6 +23,18 @@ function App() {
   const [sessionRole, setSessionRole] = useState(null);
   const [authError, setAuthError] = useState("");
   const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [scannedVehicleId, setScannedVehicleId] = useState(getScannedVehicleId);
+
+  useEffect(() => {
+    const handlePopState = () => setScannedVehicleId(getScannedVehicleId());
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const closeScannedVehicle = () => {
+    window.history.pushState({}, "", "/");
+    setScannedVehicleId(null);
+  };
 
   const fetchVehicles = async () => {
     try {
@@ -123,7 +142,15 @@ function App() {
     </footer>
   );
 
-  if (sessionRole === "mechanic") {
+  if (scannedVehicleId) {
+    content = (
+      <VehicleScanView
+        key={scannedVehicleId}
+        vehicleId={scannedVehicleId}
+        onClose={closeScannedVehicle}
+      />
+    );
+  } else if (sessionRole === "mechanic") {
     content = <MechanicView vehicles={vehicles} />;
   } else if (activeTab === "admin") {
     if (selectedComplianceVehicle) {
@@ -195,7 +222,7 @@ function App() {
           </button>
         </div>
 
-        {sessionRole === "admin" && (
+        {sessionRole === "admin" && !scannedVehicleId && (
           <div className="tabs">
             <button
               type="button"

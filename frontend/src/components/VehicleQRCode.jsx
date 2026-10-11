@@ -1,9 +1,15 @@
 import { QRCodeSVG } from "qrcode.react";
 
-function VehicleQRCode({ vehicleId, vin }) {
-  // In a live app, this URL would point to your actual website domain (e.g., https://ljgfreights.com/trucks/...)
-  // For now, it points to the local link that a phone on the same network could scan
-  const scanUrl = `http://localhost:5173/vehicle/${vehicleId}`;
+// The QR code must point at an address a phone can reach. By default that is the
+// address this page was opened from (the live site in production). When working
+// on localhost, set VITE_PUBLIC_APP_URL (e.g. http://192.168.1.20:5173 or the
+// deployed site URL) so phones don't get sent to their own "localhost".
+const publicAppUrl = (
+  import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin
+).replace(/\/+$/, "");
+
+function VehicleQRCode({ vehicleId }) {
+  const scanUrl = `${publicAppUrl}/vehicle/${vehicleId}`;
 
   return (
     <div
@@ -28,7 +34,7 @@ function VehicleQRCode({ vehicleId, vin }) {
       >
         <QRCodeSVG value={scanUrl} size={60} />
       </div>
-      <div>
+      <div style={{ minWidth: 0 }}>
         <p
           style={{
             margin: "0 0 4px 0",
@@ -42,6 +48,17 @@ function VehicleQRCode({ vehicleId, vin }) {
         <p style={{ margin: 0, fontSize: "11px", color: "#64748b" }}>
           ID: {vehicleId.slice(-6)}
         </p>
+        <a
+          href={scanUrl}
+          style={{
+            display: "block",
+            fontSize: "11px",
+            color: "#2563eb",
+            overflowWrap: "anywhere",
+          }}
+        >
+          {scanUrl}
+        </a>
       </div>
     </div>
   );

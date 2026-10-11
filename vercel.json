@@ -16,6 +16,7 @@
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/index.js" },
     { "src": "/health", "dest": "/api/index.js" },
+    { "src": "/vehicle/(.*)", "dest": "/frontend/index.html" },
     { "src": "/(.*)", "dest": "/frontend/$1" }
   ]
 }

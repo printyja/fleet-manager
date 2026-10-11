@@ -380,6 +380,7 @@ app.get(
 app.get(
   "/api/vehicles/:id",
   requireRole("admin", "mechanic"),
+  requireDatabase,
   async (req, res) => {
     try {
       const vehicle = await Vehicle.findById(req.params.id);
@@ -712,6 +713,7 @@ app.patch(
 app.get(
   "/api/vehicles/:vehicleId/tasks",
   requireRole("admin", "mechanic"),
+  requireDatabase,
   async (req, res) => {
     try {
       const history = await Task.find({ vehicleId: req.params.vehicleId }).sort(

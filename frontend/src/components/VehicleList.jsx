@@ -765,7 +765,7 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
               )}
 
               {visibleQrByVehicle[vehicle._id] && (
-                <VehicleQRCode vehicleId={vehicle._id} vin={vehicle.vin} />
+                <VehicleQRCode vehicleId={vehicle._id} />
               )}
               <TaskForm vehicleId={vehicle._id} />
             </div>

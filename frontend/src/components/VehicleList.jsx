@@ -292,6 +292,75 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
               className="card"
               style={{ position: "relative" }}
             >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  borderBottom: "1px solid #eee",
+                  paddingBottom: "10px",
+                  marginBottom: "12px",
+                }}
+              >
+                <h3 style={{ margin: 0, flex: 1, minWidth: 0 }}>
+                  <span style={{ color: "#3b82f6", marginRight: "6px" }}>
+                    #{getDisplayVehicleId(vehicle)}
+                  </span>
+                  {vehicle.year} {vehicle.make} {vehicle.model}
+                </h3>
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    flexShrink: 0,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      editingVehicleId === vehicle._id
+                        ? cancelEditing()
+                        : startEditing(vehicle)
+                    }
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      color: "#2563eb",
+                      fontSize: "13px",
+                      fontWeight: "700",
+                    }}
+                    title={
+                      editingVehicleId === vehicle._id
+                        ? "Cancel editing"
+                        : "Edit vehicle"
+                    }
+                  >
+                    {editingVehicleId === vehicle._id ? "Close" : "Edit"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(vehicle._id)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      color: "#ef4444",
+                      display: "flex",
+                    }}
+                    title="Delete Vehicle"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                </div>
+              </div>
+
               {editingVehicleId === vehicle._id && (
                 <div
                   style={{
@@ -404,64 +473,6 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
                   ) : null}
                 </div>
               )}
-
-              <button
-                type="button"
-                onClick={() => handleDelete(vehicle._id)}
-                style={{
-                  position: "absolute",
-                  top: "20px",
-                  right: "20px",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "#ef4444",
-                }}
-                title="Delete Vehicle"
-              >
-                <Trash2 size={20} />
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  editingVehicleId === vehicle._id
-                    ? cancelEditing()
-                    : startEditing(vehicle)
-                }
-                style={{
-                  position: "absolute",
-                  top: "20px",
-                  right: "56px",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "#2563eb",
-                  fontSize: "13px",
-                  fontWeight: "700",
-                }}
-                title={
-                  editingVehicleId === vehicle._id
-                    ? "Cancel editing"
-                    : "Edit vehicle"
-                }
-              >
-                {editingVehicleId === vehicle._id ? "Close" : "Edit"}
-              </button>
-
-              <h3
-                style={{
-                  borderBottom: "1px solid #eee",
-                  paddingBottom: "10px",
-                  marginTop: 0,
-                  paddingRight: "30px",
-                }}
-              >
-                <span style={{ color: "#3b82f6", marginRight: "6px" }}>
-                  #{getDisplayVehicleId(vehicle)}
-                </span>
-                {vehicle.year} {vehicle.make} {vehicle.model}
-              </h3>
 
               <div
                 style={{

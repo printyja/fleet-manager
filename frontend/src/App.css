@@ -1,4 +1,8 @@
 :root {
+  /* The app is light-only. index.css switches to light-on-dark text when the
+     device is in dark mode, which made headings white on the white cards. */
+  color-scheme: light;
+  --text-h: #10243e;
   --bg-canvas: #eef2f7;
   --bg-soft: #f8fafc;
   --surface: #ffffff;

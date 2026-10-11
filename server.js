@@ -6,7 +6,18 @@ const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const dns = require("dns");
+const Anthropic = require("@anthropic-ai/sdk");
 require("dotenv").config();
+
+// On some Windows machines Node can't read the system DNS settings and falls
+// back to 127.0.0.1, which breaks the SRV lookup for mongodb+srv:// URIs.
+// When that happens, use public resolvers instead.
+const isLoopbackDns = (server) =>
+  server.startsWith("127.") || server === "::1" || server.startsWith("[::1]");
+if (dns.getServers().every(isLoopbackDns)) {
+  dns.setServers(["8.8.8.8", "1.1.1.1"]);
+}
 
 const app = express();
 app.use(express.json());
@@ -711,6 +722,164 @@ app.get(
       res.status(200).json(history);
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+// 5. AI ASSISTANT ROUTES
+const AI_MODEL = "claude-opus-5-5";
+const MAX_AI_QUESTION_LENGTH = 500;
+
+const AI_SYSTEM_PROMPT = `You are the assistant built into a fleet maintenance app. Fleet managers and mechanics ask you questions about their vehicles, and you answer using the fleet records supplied with each question.
+
+How to answer:
+- Base every answer only on the supplied records. If the records don't contain the answer, say so plainly (for example, "I don't see any brake work recorded for Unit 101.").
+- Match work by meaning, not exact wording: "brakes" covers brake pads, rotors, calipers, and brake fluid jobs.
+- A task with status "Completed" was finished on its completedOn date. Tasks with any other status have not been done yet; mention them only if they help, and say they are still open.
+- Write dates like "March 15, 2026".
+- The records do not say who performed the work, so never name a mechanic or technician.
+- Answer in one to three conversational sentences of plain text, without markdown, headings, or lists.`;
+
+let anthropicClient = null;
+const getAnthropicClient = () => {
+  if (!anthropicClient) {
+    anthropicClient = new Anthropic();
+  }
+  return anthropicClient;
+};
+
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Vehicles whose unit number appears in the question as a whole word, e.g. "Unit 101" or "#101".
+const findVehiclesMentioned = (question, vehicles) =>
+  vehicles.filter((vehicle) => {
+    const unitNumber = String(vehicle.vehicleNumber || "").trim();
+    if (!unitNumber) return false;
+    const pattern = new RegExp(
+      `(^|[^A-Za-z0-9])${escapeRegExp(unitNumber)}($|[^A-Za-z0-9])`,
+      "i",
+    );
+    return pattern.test(question);
+  });
+
+const toDateString = (value) =>
+  value ? new Date(value).toISOString().slice(0, 10) : null;
+
+const buildFleetRecords = (vehicles, tasks) =>
+  vehicles.map((vehicle) => ({
+    unit: vehicle.vehicleNumber || "N/A",
+    year: vehicle.year,
+    make: vehicle.make,
+    model: vehicle.model,
+    vin: vehicle.vin,
+    status: vehicle.status,
+    maintenanceHistory: tasks
+      .filter((task) => task.vehicleId === String(vehicle._id))
+      .map((task) => ({
+        description: task.description,
+        status: task.status,
+        createdOn: toDateString(task.createdAt),
+        completedOn:
+          task.status === "Completed" ? toDateString(task.updatedAt) : null,
+      })),
+  }));
+
+app.post(
+  "/api/ai/ask",
+  requireRole("admin", "mechanic"),
+  requireDatabase,
+  async (req, res) => {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(503).json({
+        error: "AI search is not configured. Set ANTHROPIC_API_KEY.",
+      });
+    }
+
+    const question = String(req.body?.question ?? "").trim();
+    if (!question) {
+      return res.status(400).json({ error: "Please enter a question." });
+    }
+    if (question.length > MAX_AI_QUESTION_LENGTH) {
+      return res.status(400).json({
+        error: `Questions must be ${MAX_AI_QUESTION_LENGTH} characters or fewer.`,
+      });
+    }
+
+    try {
+      const allVehicles = await Vehicle.find().lean();
+      const mentionedVehicles = findVehiclesMentioned(question, allVehicles);
+      // Send only the units the question names; fall back to the whole fleet for
+      // fleet-wide questions like "Which trucks are in the shop?".
+      const relevantVehicles =
+        mentionedVehicles.length > 0 ? mentionedVehicles : allVehicles;
+
+      const tasks = await Task.find({
+        vehicleId: { $in: relevantVehicles.map((v) => String(v._id)) },
+      })
+        .sort({ createdAt: 1 })
+        .lean();
+
+      const fleetRecords = buildFleetRecords(relevantVehicles, tasks);
+
+      const response = await getAnthropicClient().beta.messages.create({
+        model: AI_MODEL,
+        max_tokens: 16000,
+        output_config: { effort: "low" },
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+        system: AI_SYSTEM_PROMPT,
+        messages: [
+          {
+            role: "user",
+            content: `Today's date: ${toDateString(new Date())}
+
+<fleet_records>
+${JSON.stringify(fleetRecords, null, 2)}
+</fleet_records>
+
+Question: ${question}`,
+          },
+        ],
+      });
+
+      if (response.stop_reason === "refusal") {
+        return res.status(422).json({
+          error: "The AI assistant couldn't answer that question.",
+        });
+      }
+
+      const answer = response.content
+        .filter((block) => block.type === "text")
+        .map((block) => block.text)
+        .join("")
+        .trim();
+
+      return res.status(200).json({
+        answer: answer || "I couldn't find an answer in the fleet records.",
+        vehicles: relevantVehicles.map((v) => v.vehicleNumber || "N/A"),
+      });
+    } catch (error) {
+      if (error instanceof Anthropic.AuthenticationError) {
+        console.error("AI assistant authentication failed:", error.message);
+        return res.status(503).json({
+          error: "AI search is not configured. Check ANTHROPIC_API_KEY.",
+        });
+      }
+      if (error instanceof Anthropic.RateLimitError) {
+        return res.status(429).json({
+          error: "The AI assistant is busy. Please try again in a moment.",
+        });
+      }
+      if (error instanceof Anthropic.APIError) {
+        console.error(`AI assistant API error ${error.status}:`, error.message);
+        return res
+          .status(502)
+          .json({ error: "The AI assistant is temporarily unavailable." });
+      }
+      console.error("AI assistant error:", error);
+      return res
+        .status(500)
+        .json({ error: error.message || "Could not answer the question." });
     }
   },
 );

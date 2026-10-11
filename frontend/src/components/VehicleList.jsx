@@ -8,6 +8,8 @@ import {
   Trash2,
   History,
   Download,
+  Sparkles,
+  X,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import TaskForm from "./TaskForm";
@@ -22,6 +24,8 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
   const [editDraft, setEditDraft] = useState(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editError, setEditError] = useState("");
+  const [aiAnswer, setAiAnswer] = useState(null);
+  const [isAskingAi, setIsAskingAi] = useState(false);
 
   const getDisplayVehicleId = (vehicle) =>
     vehicle.vehicleNumber || vehicle.vehicleId || vehicle.vehicleID || "N/A";
@@ -34,7 +38,15 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
 
   const safeVehicles = Array.isArray(vehicles) ? vehicles : [];
 
+  // A question like "When were the brakes last replaced on Unit 101?" goes to
+  // the AI assistant instead of filtering the cards.
+  const trimmedSearch = searchTerm.trim();
+  const looksLikeQuestion =
+    trimmedSearch.endsWith("?") || trimmedSearch.split(/\s+/).length >= 4;
+
   const filteredVehicles = safeVehicles.filter((vehicle) => {
+    if (looksLikeQuestion) return true;
+
     const searchLower = searchTerm.toLowerCase();
     const vNum = getDisplayVehicleId(vehicle).toLowerCase();
     const make = String(vehicle.make || "").toLowerCase();
@@ -50,6 +62,44 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
       year.includes(searchLower)
     );
   });
+
+  const askAi = async () => {
+    const question = trimmedSearch;
+    if (!question || isAskingAi) return;
+
+    setIsAskingAi(true);
+    setAiAnswer({ question, text: "", error: "" });
+
+    try {
+      const response = await fetch("/api/ai/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      });
+
+      let result = {};
+      try {
+        result = await response.json();
+      } catch {
+        result = {};
+      }
+
+      if (!response.ok) {
+        throw new Error(result.error || "The AI assistant could not answer.");
+      }
+
+      setAiAnswer({ question, text: result.answer, error: "" });
+    } catch (error) {
+      console.error("Error asking AI:", error);
+      setAiAnswer({
+        question,
+        text: "",
+        error: error.message || "The AI assistant could not answer.",
+      });
+    } finally {
+      setIsAskingAi(false);
+    }
+  };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this vehicle?"))
@@ -249,9 +299,15 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
             <Search size={18} color="#94a3b8" style={{ marginRight: "8px" }} />
             <input
               type="text"
-              placeholder="Search ID, Year, Make, VIN..."
+              placeholder="Search ID, Make, VIN... or ask a question"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  askAi();
+                }
+              }}
               style={{
                 border: "none",
                 outline: "none",
@@ -279,7 +335,89 @@ function VehicleList({ vehicles, refreshData, onOpenCompliance }) {
           >
             <Download size={16} /> Export Excel
           </button>
+          <button
+            type="button"
+            onClick={askAi}
+            disabled={!trimmedSearch || isAskingAi}
+            title="Ask the AI assistant about your fleet"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+              background: "#7c3aed",
+              color: "white",
+              border: "none",
+              padding: "8px 16px",
+              borderRadius: "8px",
+              cursor: !trimmedSearch || isAskingAi ? "not-allowed" : "pointer",
+              opacity: !trimmedSearch || isAskingAi ? 0.6 : 1,
+              fontSize: "14px",
+              fontWeight: "600",
+            }}
+          >
+            <Sparkles size={16} /> {isAskingAi ? "Thinking..." : "Ask AI"}
+          </button>
         </div>
+
+        {looksLikeQuestion && !aiAnswer && (
+          <p style={{ margin: 0, fontSize: "13px", color: "#64748b" }}>
+            Press Enter to ask the AI assistant.
+          </p>
+        )}
+
+        {aiAnswer && (
+          <div
+            style={{
+              position: "relative",
+              background: "#f5f3ff",
+              border: "1px solid #ddd6fe",
+              borderRadius: "8px",
+              padding: "12px 40px 12px 14px",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setAiAnswer(null)}
+              title="Dismiss answer"
+              style={{
+                position: "absolute",
+                top: "10px",
+                right: "10px",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "#6b7280",
+                display: "flex",
+              }}
+            >
+              <X size={18} />
+            </button>
+            <p
+              style={{
+                margin: "0 0 6px",
+                fontSize: "13px",
+                color: "#6d28d9",
+                fontWeight: "600",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <Sparkles size={14} /> {aiAnswer.question}
+            </p>
+            <p
+              style={{
+                margin: 0,
+                color: aiAnswer.error ? "#b91c1c" : "#1e293b",
+                fontWeight: aiAnswer.error ? "600" : "normal",
+              }}
+            >
+              {isAskingAi
+                ? "Checking maintenance records..."
+                : aiAnswer.error || aiAnswer.text}
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="fleet-grid">
